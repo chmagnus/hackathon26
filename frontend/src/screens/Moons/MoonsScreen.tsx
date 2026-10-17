@@ -14,9 +14,10 @@
  *  - onSelectMoon(moonId): used instead when no renderConcept is given (no transition).
  * Which planet/chapter the camera is on lives in the shared view (src/galaxy/view.ts).
  */
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { InUniverse } from '../../galaxy/tunnel'
 import { useView } from '../../galaxy/view'
+import { fetchMoon } from '../Concept/moonApi'
 import { ChapterPanel } from './ChapterPanel'
 import { chapterState, type ChapterProgress } from './chapters'
 import { ConceptLayer } from './ConceptLayer'
@@ -41,11 +42,14 @@ export interface MoonsScreenProps {
 const logMoon = (moonId: string) => console.log('select moon', moonId)
 
 export function MoonsScreen({ planet = MOCK_PLANET, progress: initialProgress = MOCK_PROGRESS, onSelectChapter, onSelectMoon = logMoon, onCompleteMoon, renderConcept }: MoonsScreenProps) {
-  // concepts completed on the Concept page this session (until the shared progress store exists)
+  // concepts completed on the Concept page this session (until the shared progress store exists).
+  // Memoized so re-renders during a concept transition don't rebuild the 3D moon system (see moonSystem below).
   const [justCompleted, setJustCompleted] = useState<string[]>([])
-  const progress: ChapterProgress = { completed: [...new Set([...initialProgress.completed, ...justCompleted])] }
-  const states = planet.orbits.map((orbit) => chapterState(orbit, planet.orbits, progress))
-
+  const completed = useMemo(() => [...new Set([...initialProgress.completed, ...justCompleted])], [initialProgress.completed, justCompleted])
+  const states = useMemo(
+    () => planet.orbits.map((orbit) => chapterState(orbit, planet.orbits, { completed })),
+    [planet, completed],
+  )
   const view = useView((s) => s.view)
   const zoomedIn = useView((s) => s.zoomedIn)
   const chapter = useView((s) => s.chapter)
@@ -62,14 +66,14 @@ export function MoonsScreen({ planet = MOCK_PLANET, progress: initialProgress = 
   const [toastVisible, setToastVisible] = useState(false)
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   useEffect(() => () => clearTimeout(toastTimer.current), [])
-  function showToast(text: string) {
+  const showToast = useCallback((text: string) => {
     setToast(text)
     setToastVisible(true)
     clearTimeout(toastTimer.current)
     toastTimer.current = setTimeout(() => setToastVisible(false), TOAST_MS)
-  }
+  }, [])
 
-  function selectChapter(orbitNumber: number) {
+  const selectChapter = useCallback((orbitNumber: number) => {
     const i = planet.orbits.findIndex((o) => o.number === orbitNumber)
     if (states[i] === 'locked') {
       const next = planet.orbits[states.indexOf('current')]?.number ?? orbitNumber - 1
@@ -77,7 +81,13 @@ export function MoonsScreen({ planet = MOCK_PLANET, progress: initialProgress = 
       return
     }
     if (chapter !== orbitNumber) setChapter(orbitNumber)
-  }
+  }, [planet, states, chapter, setChapter, showToast])
+
+  // the same element as long as its inputs don't change, so the shared canvas doesn't re-render it
+  const moonSystem = useMemo(
+    () => <MoonSystem planet={planet} states={states} onSelectChapter={selectChapter} />,
+    [planet, states, selectChapter],
+  )
 
   // tell the parent once the camera has arrived at a chapter (latest callback, without re-subscribing)
   const selectChapterRef = useRef(onSelectChapter)
@@ -91,17 +101,29 @@ export function MoonsScreen({ planet = MOCK_PLANET, progress: initialProgress = 
 
   // opening a concept page from the panel, with the card-expands transition
   const concept = useConceptTransition({
+    planetId: planet.id,
     moons: focusedOrbit?.moons ?? [],
     onCompleted: (id) => {
       if (onCompleteMoon) onCompleteMoon(id)
       else setJustCompleted((d) => (d.includes(id) ? d : [...d, id]))
     },
   })
-  const { phase: conceptPhase, close: closeConcept } = concept
+  const { phase: conceptPhase, close: closeConcept, moonId: conceptMoonId, handlers: conceptHandlers } = concept
   function selectMoon(moonId: string, rect: DOMRect) {
     if (renderConcept) concept.open(moonId, rect)
     else onSelectMoon(moonId)
   }
+  // prefetch every concept in the chapter as soon as its panel opens (fetchMoon caches them for the page)
+  useEffect(() => {
+    if (!renderConcept || !focusedOrbit) return
+    for (const moon of focusedOrbit.moons) fetchMoon(planet.id, moon.id).catch(() => { /* the page shows its own error */ })
+  }, [renderConcept, focusedOrbit, planet.id])
+
+  // rendered once per concept, so phase changes during the transition don't re-render the page
+  const conceptPage = useMemo(
+    () => (renderConcept && conceptMoonId ? renderConcept(conceptMoonId, conceptHandlers) : null),
+    [renderConcept, conceptMoonId, conceptHandlers],
+  )
 
   // Escape: back from the concept page, else close the open chapter, else go back to the universe (same as "← Universe").
   // Ignored while a concept transition is running.
@@ -120,19 +142,18 @@ export function MoonsScreen({ planet = MOCK_PLANET, progress: initialProgress = 
 
   return (
     <>
-      <InUniverse>
-        <MoonSystem planet={planet} states={states} onSelectChapter={selectChapter} />
-      </InUniverse>
+      <InUniverse>{moonSystem}</InUniverse>
 
       {/* overlay on top of the Universe canvas: lets the pointer through, except on its own panels and buttons */}
       <div inert={concept.busy} className={`pointer-events-none absolute inset-0 overflow-hidden font-body text-ink transition-[opacity,visibility] duration-500 ${here ? '' : 'invisible opacity-0'}`}>
-        <MoonsHud planet={planet} states={states} onBack={() => setView({ mode: 'universe' })} onSelectChapter={selectChapter} hideHint={chapter !== null} />
+        <MoonsHud planet={planet} states={states} onBack={() => setView({ mode: 'universe' })} onSelectChapter={selectChapter} hideHint={chapter !== null} plain={concept.busy} />
 
         {focusedOrbit && (
           <ChapterPanel
             orbit={focusedOrbit}
-            completed={progress.completed}
+            completed={completed}
             onSelectMoon={selectMoon}
+            onPreview={renderConcept ? concept.preview : undefined}
             onClose={close}
             expandingId={concept.expandingId}
             away={concept.away}
@@ -154,12 +175,11 @@ export function MoonsScreen({ planet = MOCK_PLANET, progress: initialProgress = 
       {renderConcept && (
         <ConceptLayer
           phase={concept.phase}
-          moonId={concept.moonId}
-          ghost={concept.ghost}
-          pageShown={concept.pageShown}
           dimmed={concept.dimmed}
           busy={concept.busy}
-          renderPage={(moonId) => renderConcept(moonId, concept.handlers)}
+          ghostRef={concept.ghostRef}
+          pageRef={concept.pageRef}
+          page={conceptPage}
         />
       )}
     </>
