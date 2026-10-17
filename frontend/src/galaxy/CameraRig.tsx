@@ -3,6 +3,7 @@
  *  - universe mode: intro fly-in to the overview, slow auto-rotate, drag to orbit and scroll to zoom (Home's old behaviour)
  *  - planet mode: one continuous flight to PLANET_VIEW_DISTANCE from the planet, then follows the planet as it drifts
  *  - planet mode + chapter: flies to MOON_VIEW_DISTANCE from that chapter's moon and follows it
+ *    (READING_DISTANCE while a concept page is open over it)
  * Driven by useView(); marks `arrived` / `chapterArrived` once the camera gets there.
  * Also works out live.zoom every frame (and the zoomStarted / zoomedIn flags) for the fades.
  *
@@ -25,6 +26,9 @@ const PLANET_VIEW_DISTANCE = 21
 /** How far from a focused moon, and how high above its ring (radians). */
 const MOON_VIEW_DISTANCE = 7
 const MOON_VIEW_ELEVATION = 0.32
+/** A little closer while a concept page is open over the moon, reached with a shorter ease. */
+const READING_DISTANCE = 5
+const READING_FLIGHT_SECONDS = 0.9
 /** Home's old OrbitControls autoRotateSpeed 0.25, in radians per second. */
 const AUTO_ROTATE = ((2 * Math.PI) / 60) * 0.25
 const UNIVERSE_DISTANCE: [number, number] = [30, 260]
@@ -64,6 +68,7 @@ function updateZoom(camera: THREE.Camera, planetId: PlanetId | null) {
 
 interface Flight {
   elapsed: number
+  duration: number
   /** where the camera was looking from/at when the flight started */
   fromTarget: THREE.Vector3
   fromOffset: THREE.Spherical
@@ -78,7 +83,10 @@ export function CameraRig() {
   const controls = useRef<CameraControlsImpl>(null)
   const view = useView((s) => s.view)
   const chapter = useView((s) => s.chapter)
+  const reading = useView((s) => s.reading)
   const get = useThree((s) => s.get)
+  /** view/chapter of the previous flight, to tell a reading-only change (short ease) from a real flight */
+  const lastFlight = useRef<{ view: unknown; chapter: number | null }>({ view: null, chapter: null })
   const dragging = useRef(false)
   const flight = useRef<Flight | null>(null)
   /** the planet live.zoom is measured against: the one being visited, or the last one after flying back out */
@@ -93,9 +101,13 @@ export function CameraRig() {
     const fromTarget = c.getTarget(new THREE.Vector3(), false)
     const fromPosition = c.getPosition(new THREE.Vector3(), false)
     const fromOffset = new THREE.Spherical().setFromVector3(fromPosition.clone().sub(fromTarget))
+    // only `reading` changed: a short ease closer to (or back from) the moon rather than a full flight
+    const readingOnly = lastFlight.current.view === view && lastFlight.current.chapter === chapter
+    lastFlight.current = { view, chapter }
+    const duration = readingOnly ? READING_FLIGHT_SECONDS : FLIGHT_SECONDS
     const start = (to: Flight['to'], limits: [number, number], onDone?: () => void) => {
       ;[c.minDistance, c.maxDistance] = [0, Infinity]
-      flight.current = { elapsed: 0, fromTarget, fromOffset, to, limits, onDone }
+      flight.current = { elapsed: 0, duration, fromTarget, fromOffset, to, limits, onDone }
     }
 
     if (view.mode === 'universe') {
@@ -122,14 +134,15 @@ export function CameraRig() {
       // outside the ring, slightly above, so the planet sits behind the moon
       const offset = m0.clone().sub(p0).setY(0)
       if (offset.lengthSq() < 1e-6) offset.set(0, 0, 1)
-      offset.normalize().multiplyScalar(MOON_VIEW_DISTANCE * Math.cos(MOON_VIEW_ELEVATION))
-      offset.y = MOON_VIEW_DISTANCE * Math.sin(MOON_VIEW_ELEVATION)
+      const distance = reading ? READING_DISTANCE : MOON_VIEW_DISTANCE
+      offset.normalize().multiplyScalar(distance * Math.cos(MOON_VIEW_ELEVATION))
+      offset.y = distance * Math.sin(MOON_VIEW_ELEVATION)
       start(() => {
         const m = chapterPositions[chapter]
         return m ? { target: m, offset } : null
       }, MOON_DISTANCE, useView.getState().setChapterArrived)
     }
-  }, [view, chapter, get])
+  }, [view, chapter, reading, get])
 
   useFrame((_, dt) => {
     const c = controls.current
@@ -144,7 +157,7 @@ export function CameraRig() {
       const end = f.to()
       if (!end) return
       f.elapsed += dt
-      const k = Math.min(1, f.elapsed / FLIGHT_SECONDS)
+      const k = Math.min(1, f.elapsed / f.duration)
       const u = easeInOutCubic(k)
       const { target, position, offset, spherical } = tmp
       target.lerpVectors(f.fromTarget, end.target, u)
