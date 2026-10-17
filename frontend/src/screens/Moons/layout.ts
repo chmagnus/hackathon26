@@ -1,22 +1,37 @@
 /**
- * Where things sit in the Planet view. Positions are computed, never hand-placed.
- *
- * Home's planet shader is lit by the star at the world origin, so the planet sits away from it
- * (about as far as on Home) and everything on this screen is placed relative to the planet.
+ * Where things sit in the Planet view (values from the prototype's moons scene).
+ * The planet is at the origin; chapter moons share one tilted ring around it.
  */
 
-/** World position of the planet. The star at the origin lights it from the front right. */
-export const PLANET_POSITION: [number, number, number] = [-20, 0, -35]
+export const PLANET_RADIUS = 4.6
+/** The sun's direction: lights the planet shader and matches the directional light. */
+export const LIGHT_POSITION: [number, number, number] = [-300, 140, 200]
 
-/** All chapter moons share one ring around the planet (outside the planet's own Saturn-style ring). */
-export const CHAPTER_ORBIT_RADIUS = 10
-/** Slight tilt of that ring, as [x, y, z] rotation in radians. */
-export const CHAPTER_ORBIT_TILT: [number, number, number] = [0.22, 0, 0.12]
-/** Radians per second: one lap takes about 80 s. */
-export const CHAPTER_ORBIT_SPEED = 0.08
+export const MOON_ORBIT_RADIUS = 12.5
+/** Tilt of the moon ring around the x axis, in radians. */
+export const MOON_ORBIT_TILT = 0.38
+/** Radians per second (one lap takes about 3 minutes). */
+export const MOON_ORBIT_SPEED = 0.035
 
-/** Position of chapter `index` (0-based) on the ring, relative to the planet and before the tilt. `time` is in seconds. */
+/** Camera: distance from the planet and height angle (radians) on a wide screen. */
+export const CAMERA_DISTANCE = 38
+export const CAMERA_ELEVATION = 0.32
+
+const reducedMotion = typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+
+/** Angle of chapter `index` (0-based) on the ring. The first chapter starts at the back. */
+export function chapterAngle(index: number, count: number, time: number): number {
+  const spin = reducedMotion ? 0 : time * MOON_ORBIT_SPEED
+  return -Math.PI / 2 + (index / count) * Math.PI * 2 + spin
+}
+
+/** Position of chapter `index` in the ring's own (untilted) space, with a gentle bob. `time` is in seconds. */
 export function chapterPosition(index: number, count: number, time: number): [number, number, number] {
-  const angle = (index / count) * Math.PI * 2 + time * CHAPTER_ORBIT_SPEED
-  return [Math.cos(angle) * CHAPTER_ORBIT_RADIUS, 0, Math.sin(angle) * CHAPTER_ORBIT_RADIUS]
+  const a = chapterAngle(index, count, time)
+  return [Math.cos(a) * MOON_ORBIT_RADIUS, Math.sin(time * 0.7 + index) * 0.25, Math.sin(a) * MOON_ORBIT_RADIUS]
+}
+
+/** Angle halfway between chapter `index` and the next one: where the arrow between them sits. */
+export function arrowAngle(index: number, count: number, time: number): number {
+  return (chapterAngle(index, count, time) + chapterAngle(index + 1, count, time)) / 2
 }

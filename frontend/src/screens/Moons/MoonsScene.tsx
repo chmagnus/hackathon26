@@ -1,107 +1,170 @@
 /**
- * The 3D part of the Planet view: the same planet as on Home, seen up close, with one chapter moon per orbit
- * circling it on a single tilted ring. Reuses Home's planet, star, starfield and post-processing so the
- * two screens look like one place.
+ * The 3D part of the Planet view, ported from the prototype's moons scene (algoverse2.html):
+ * the procedurally shaded planet with its atmosphere, ring and glow; one crater moon per chapter on a
+ * tilted dashed ring; arrows between consecutive chapters; starfield, nebula and a far sun.
+ *
+ * Colours are created with rawColor() and lights are scaled by PI so it matches r128's look (see MoonsScreen).
  */
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Line, OrbitControls, Stars } from '@react-three/drei'
-import { Bloom, EffectComposer, ToneMapping } from '@react-three/postprocessing'
-import { ToneMappingMode } from 'postprocessing'
+import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
-import { PlanetBody } from '../Home/PlanetBody'
-import { HOME_PLANETS } from '../Home/planets'
-import { Star } from '../Home/Star'
-import { radialTexture } from '../Home/textures'
-import { chapterPosition, CHAPTER_ORBIT_RADIUS, CHAPTER_ORBIT_TILT, PLANET_POSITION } from './layout'
+import {
+  arrowAngle, CAMERA_DISTANCE, CAMERA_ELEVATION, chapterPosition, LIGHT_POSITION,
+  MOON_ORBIT_RADIUS, MOON_ORBIT_TILT, PLANET_RADIUS,
+} from './layout'
+import { atmosphereMaterial, BLOCKCHAIN_SHADE, planetMaterial } from './planetShader'
+import { Sky } from './Sky'
+import { craterTex, glowTex, rawColor } from './textures'
 import type { Planet } from './types'
 
-const MOON_RADIUS = 0.9
+const LIGHT = new THREE.Vector3(...LIGHT_POSITION)
+const BACKGROUND = rawColor('#03040a')
+const PLANET_GLOW = rawColor('#6ff2c5')
+const AMBIENT = rawColor('#404a70')
+const SUN = rawColor('#fff0dd')
+const ARROW = rawColor('#7cc4ff')
+/** "locked" look; state colours come later */
+const DIM = rawColor('#3a4466')
+const MOON_RADIUS = 1.05
+const UP = new THREE.Vector3(0, 1, 0)
 
-function OrbitRing({ radius }: { radius: number }) {
-  const points = useMemo(() => Array.from({ length: 181 }, (_, k) => {
-    const a = (k / 180) * Math.PI * 2
-    return new THREE.Vector3(Math.cos(a) * radius, 0, Math.sin(a) * radius)
-  }), [radius])
-  return <Line points={points} color="#97a3c2" transparent opacity={0.45} lineWidth={1} />
-}
+function PlanetBody() {
+  const surface = useRef<THREE.Mesh>(null)
+  const surfaceMat = useMemo(() => planetMaterial(BLOCKCHAIN_SHADE, LIGHT), [])
+  const atmosphereMat = useMemo(() => atmosphereMaterial(BLOCKCHAIN_SHADE, LIGHT), [])
+  const glow = useMemo(() => glowTex(), [])
+  useEffect(() => () => { surfaceMat.dispose(); atmosphereMat.dispose(); glow.dispose() }, [surfaceMat, atmosphereMat, glow])
 
-/** Copied from HomeScene (not exported there). Move both into a shared place if the team agrees. */
-function Nebula() {
-  const tex = useMemo(() => radialTexture([[0, 'rgba(255,255,255,.9)'], [0.4, 'rgba(255,255,255,.25)'], [1, 'rgba(255,255,255,0)']]), [])
-  const clouds: [string, [number, number, number], number, number][] = [
-    ['#1d6f80', [320, 160, -560], 560, 0.2],
-    ['#6b3a63', [-460, -90, -460], 500, 0.16],
-    ['#2a4c9a', [60, -280, -640], 460, 0.14],
-  ]
-  return (
-    <>
-      {clouds.map(([color, pos, size, opacity], i) => (
-        <sprite key={i} position={pos} scale={size}>
-          <spriteMaterial map={tex} color={color} transparent opacity={opacity} depthWrite={false} blending={THREE.AdditiveBlending} />
-        </sprite>
-      ))}
-    </>
-  )
-}
-
-/** The chapter moons, moved along the ring every frame. userData.orbitNumber says which chapter a click hit. */
-function ChapterMoons({ planet }: { planet: Planet }) {
-  const moons = useRef<THREE.Mesh[]>([])
-  const count = planet.orbits.length
-
-  useFrame((state) => {
-    const t = state.clock.elapsedTime
-    moons.current.forEach((m, i) => m?.position.set(...chapterPosition(i, count, t)))
+  useFrame((state, dt) => {
+    const m = surface.current
+    if (!m) return
+    ;(m.material as THREE.ShaderMaterial).uniforms.uT.value = state.clock.elapsedTime
+    m.rotation.y += dt * 0.05
   })
 
   return (
     <>
-      {planet.orbits.map((orbit, i) => (
-        <mesh
-          key={orbit.number}
-          ref={(el) => { if (el) moons.current[i] = el }}
-          position={chapterPosition(i, count, 0)}
-          userData={{ orbitNumber: orbit.number }}
-        >
-          <sphereGeometry args={[MOON_RADIUS, 32, 32]} />
-          <meshStandardMaterial color="#cdd5ea" roughness={0.85} />
-        </mesh>
-      ))}
+      <mesh ref={surface} material={surfaceMat}>
+        <sphereGeometry args={[PLANET_RADIUS, 96, 64]} />
+      </mesh>
+      <mesh material={atmosphereMat} raycast={() => null}>
+        <sphereGeometry args={[PLANET_RADIUS * 1.07, 64, 48]} />
+      </mesh>
+      <mesh rotation-x={1.3} raycast={() => null}>
+        <ringGeometry args={[6.4, 9.2, 120]} />
+        <meshBasicMaterial color={PLANET_GLOW} transparent opacity={0.28} side={THREE.DoubleSide} />
+      </mesh>
+      <sprite scale={[22, 22, 1]} raycast={() => null}>
+        <spriteMaterial map={glow} color={PLANET_GLOW} transparent opacity={0.14} depthWrite={false} blending={THREE.AdditiveBlending} />
+      </sprite>
     </>
   )
 }
 
+function OrbitLine() {
+  const line = useMemo(() => {
+    const pts = Array.from({ length: 201 }, (_, k) => {
+      const a = (k / 200) * Math.PI * 2
+      return new THREE.Vector3(Math.cos(a) * MOON_ORBIT_RADIUS, 0, Math.sin(a) * MOON_ORBIT_RADIUS)
+    })
+    const l = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints(pts),
+      new THREE.LineDashedMaterial({ color: ARROW, dashSize: 0.4, gapSize: 0.4, transparent: true, opacity: 0.3 }),
+    )
+    l.computeLineDistances()
+    return l
+  }, [])
+  useEffect(() => () => { line.geometry.dispose(); (line.material as THREE.Material).dispose() }, [line])
+  return <primitive object={line} />
+}
+
+/** One chapter (orbit) as a crater moon with a halo. userData.orbitNumber says which chapter a click hit. */
+function ChapterMoon({ index, count, orbitNumber }: { index: number; count: number; orbitNumber: number }) {
+  const group = useRef<THREE.Group>(null)
+  const body = useRef<THREE.Mesh>(null)
+  const surface = useMemo(() => craterTex(100 + index * 13), [index])
+  const glow = useMemo(() => glowTex(), [])
+  useEffect(() => () => { surface.dispose(); glow.dispose() }, [surface, glow])
+
+  useFrame((state, dt) => {
+    group.current?.position.set(...chapterPosition(index, count, state.clock.elapsedTime))
+    if (body.current) body.current.rotation.y += dt * 0.3
+  })
+
+  return (
+    <group ref={group} position={chapterPosition(index, count, 0)}>
+      <mesh ref={body} userData={{ orbitNumber }}>
+        <sphereGeometry args={[MOON_RADIUS, 40, 28]} />
+        <meshStandardMaterial map={surface} bumpMap={surface} bumpScale={0.07} roughness={0.95} emissive={DIM} emissiveIntensity={0.12} />
+      </mesh>
+      <sprite scale={[4.4, 4.4, 1]} raycast={() => null}>
+        <spriteMaterial map={glow} color={DIM} transparent opacity={0.15} depthWrite={false} blending={THREE.AdditiveBlending} />
+      </sprite>
+    </group>
+  )
+}
+
+/** Cone halfway between chapter `index` and the next, pointing along the ring (the reading order). */
+function ChapterArrow({ index, count }: { index: number; count: number }) {
+  const cone = useRef<THREE.Mesh>(null)
+  const dir = useMemo(() => new THREE.Vector3(), [])
+
+  useFrame((state) => {
+    const m = cone.current
+    if (!m) return
+    const a = arrowAngle(index, count, state.clock.elapsedTime)
+    m.position.set(Math.cos(a) * MOON_ORBIT_RADIUS, 0, Math.sin(a) * MOON_ORBIT_RADIUS)
+    m.quaternion.setFromUnitVectors(UP, dir.set(-Math.sin(a), 0, Math.cos(a)))
+  })
+
+  return (
+    <mesh ref={cone} raycast={() => null}>
+      <coneGeometry args={[0.28, 0.75, 14]} />
+      <meshBasicMaterial color={ARROW} transparent opacity={0.7} />
+    </mesh>
+  )
+}
+
+/** Places the camera like the prototype: further back on tall/narrow screens so the whole ring fits. */
+function CameraFit() {
+  const fittedAspect = useRef(0)
+  useFrame(({ camera, size }) => {
+    const aspect = size.width / size.height
+    if (aspect === fittedAspect.current) return
+    fittedAspect.current = aspect
+    const d = CAMERA_DISTANCE * Math.max(1, Math.pow(1.45 / aspect, 0.85))
+    camera.position.set(0, Math.sin(CAMERA_ELEVATION) * d, Math.cos(CAMERA_ELEVATION) * d)
+  })
+  return null
+}
+
 export function MoonsScene({ planet }: { planet: Planet }) {
-  // Home's look for this planet (shader colours, size, ring). Falls back to the first Home planet for unknown ids.
-  const look = HOME_PLANETS.find((p) => p.id === planet.id) ?? HOME_PLANETS[0]
+  const count = planet.orbits.length
 
   return (
     <>
-      <color attach="background" args={['#03040a']} />
-      {/* same lighting as Home: the star's light plus a low ambient so the night side stays dark */}
-      <ambientLight color="#404a70" intensity={0.15} />
-      <Stars radius={300} depth={200} count={5000} factor={5} saturation={0.2} fade speed={0.4} />
-      <Nebula />
-      <Star />
+      <primitive attach="background" object={BACKGROUND} />
+      <Sky />
+      {/* r128 lit with "legacy" intensities; newer three needs them multiplied by PI to match */}
+      <ambientLight color={AMBIENT} intensity={0.55 * Math.PI} />
+      <directionalLight color={SUN} intensity={1.25 * Math.PI} position={[-30, 14, 20]} />
 
-      <group position={PLANET_POSITION}>
-        {/* PlanetBody spins itself slowly on its axis */}
-        <PlanetBody planet={look} />
-        <group rotation={CHAPTER_ORBIT_TILT}>
-          <OrbitRing radius={CHAPTER_ORBIT_RADIUS} />
-          <ChapterMoons planet={planet} />
-        </group>
+      <PlanetBody />
+
+      <group rotation-x={MOON_ORBIT_TILT}>
+        <OrbitLine />
+        {planet.orbits.map((orbit, i) => (
+          <ChapterMoon key={orbit.number} index={i} count={count} orbitNumber={orbit.number} />
+        ))}
+        {planet.orbits.slice(0, -1).map((orbit, i) => (
+          <ChapterArrow key={orbit.number} index={i} count={count} />
+        ))}
       </group>
 
-      {/* temporary: drag to look around until the real camera exists */}
-      <OrbitControls makeDefault target={PLANET_POSITION} enablePan={false} enableDamping minDistance={8} maxDistance={80} />
-
-      {/* same glow and tone mapping as Home, so the planet shader looks identical */}
-      <EffectComposer multisampling={4}>
-        <Bloom intensity={0.6} luminanceThreshold={0.8} luminanceSmoothing={0.2} mipmapBlur />
-        <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-      </EffectComposer>
+      <CameraFit />
+      {/* drag to orbit, scroll to zoom, within the prototype's limits */}
+      <OrbitControls makeDefault enablePan={false} enableDamping minDistance={21} maxDistance={64} minPolarAngle={0.55} maxPolarAngle={1.75} />
     </>
   )
 }
