@@ -5,16 +5,10 @@ from datetime import date
 
 import httpx
 
-from providers import PROVIDERS, ProviderError
+from .content_data import SYSTEMS
+from .providers import PROVIDERS, ProviderError
 
 logger = logging.getLogger("nova.tutor")
-
-# Content comes from Backend 1's build. Until it exists, the tutor runs without moon context.
-try:
-    from content_data import SYSTEMS
-except ImportError:
-    SYSTEMS = {}
-
 
 def _iter_moons(planet: dict):
     for orbit in planet.get("orbits", []):
@@ -22,7 +16,8 @@ def _iter_moons(planet: dict):
 
 
 def build_system_prompt(req) -> str:
-    planet = SYSTEMS.get(req.system)
+    record = SYSTEMS.get(req.system)
+    planet = record.model_dump() if record is not None else None
     moon = next((m for m in _iter_moons(planet) if m["id"] == req.moon_id), None) if planet else None
 
     if not planet or not moon:

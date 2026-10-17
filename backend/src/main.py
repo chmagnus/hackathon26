@@ -1,14 +1,13 @@
 import json
 import logging
 
-from pydantic import BaseModel
-from .routes.systems import router as systems_router
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from schemas import TutorRequest
-from settings import get_settings
-from tutor import build_system_prompt, stream_with_fallback, within_daily_cap
+from .routes.systems import router as systems_router
+from .schemas import TutorRequest
+from .settings import get_settings
+from .tutor import build_system_prompt, stream_with_fallback, within_daily_cap
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("nova")
