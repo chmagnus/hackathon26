@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { Universe } from './galaxy/Universe'
 import { HomeScreen } from './screens/Home/HomeScreen'
 import { HOME_PLANETS, type PlanetId } from './screens/Home/planets'
 import { MoonsScreen } from './screens/Moons/MoonsScreen'
@@ -127,7 +128,12 @@ export default function App() {
         // planetId will choose the planet once content comes from the API
         <MoonsScreen onBack={() => warpTo({ name: 'home' }, 'back')} onReady={reveal} />
       ) : (
-        <HomeScreen key={homeKey} onSelectPlanet={selectPlanet} />
+        // shared canvas + Home's overlay. Step 1 of the shared-canvas plan: the Moon screen still has its own canvas,
+        // so Universe is only mounted with Home for now.
+        <>
+          <Universe />
+          <HomeScreen key={homeKey} onSelectPlanet={selectPlanet} />
+        </>
       )}
 
       {toast && (

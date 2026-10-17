@@ -7,9 +7,13 @@
  *  - completedMoons / captured / justCaptured: progress from the shared state (whoever owns it)
  *  - onSelectPlanet(id): called after the camera flies to the clicked planet -> show screen 2 (Moons)
  * If those props aren't passed, the screen runs on its own with demo progress so it can be built and tested alone.
+ *
+ * The 3D scene is drawn in the shared Universe canvas (src/galaxy), which must be mounted alongside this screen;
+ * this component is the 2D overlay on top of it.
  */
-import { useRef, useState, type FormEvent } from 'react'
-import { Canvas } from '@react-three/fiber'
+import { useState, type FormEvent } from 'react'
+import { universeLabelRoot } from '../../galaxy/labelRoot'
+import { InUniverse } from '../../galaxy/tunnel'
 import { HomeScene } from './HomeScene'
 import { HOME_PLANETS, type PlanetId } from './planets'
 import { playPlanetClick } from '../../shared/sounds'
@@ -72,25 +76,18 @@ export function HomeScreen(props: HomeScreenProps) {
     setEditingName(false)
   }
 
-  // fixed container for the planet labels (see HomeScene)
-  const labelRoot = useRef<HTMLDivElement>(null!)
-
   const shown = name || 'Guest'
   const inOrbit = captured.length
 
   return (
-    <div ref={labelRoot} className="relative h-full overflow-hidden bg-void font-body text-ink">
-      <Canvas className="absolute! inset-0" camera={{ fov: 42, near: 0.1, far: 4000, position: [0, 50, 110] }} dpr={[1, 1.5]}
-        gl={{ antialias: false, powerPreference: 'high-performance' }}
-        onCreated={({ gl }) => {
-          // if the graphics driver drops the WebGL context, ask the browser to restore it instead of staying black
-          gl.domElement.addEventListener('webglcontextlost', (e) => e.preventDefault())
-        }}>
-        <HomeScene completedMoons={completedMoons} captured={captured} justCaptured={justCaptured} focusId={focusId} onPlanetClick={selectPlanet} labelRoot={labelRoot} />
-      </Canvas>
+    // overlay on top of the Universe canvas: lets the pointer through, except on its own panels and buttons
+    <div className="pointer-events-none absolute inset-0 overflow-hidden font-body text-ink">
+      <InUniverse>
+        <HomeScene completedMoons={completedMoons} captured={captured} justCaptured={justCaptured} focusId={focusId} onPlanetClick={selectPlanet} labelRoot={universeLabelRoot} />
+      </InUniverse>
 
       {/* user chip (top-left, as in the whiteboard sketch) */}
-      <div className="absolute left-4 top-4 flex items-center gap-2.5 rounded-2xl border border-white/15 bg-glass px-3.5 py-2.5 backdrop-blur">
+      <div className="pointer-events-auto absolute left-4 top-4 flex items-center gap-2.5 rounded-2xl border border-white/15 bg-glass px-3.5 py-2.5 backdrop-blur">
         <span className="grid size-9 place-items-center rounded-full bg-[radial-gradient(circle_at_35%_30%,#fff2c4,#ffb347_55%,#c2541b)] font-extrabold text-[#3a1600]">
           {shown[0].toUpperCase()}
         </span>
@@ -103,7 +100,7 @@ export function HomeScreen(props: HomeScreenProps) {
         </button>
       </div>
 
-      <div className="absolute right-4 top-4 rounded-2xl border border-white/15 bg-glass px-4 py-2.5 font-display text-lg font-extrabold tracking-[.08em] backdrop-blur max-sm:hidden">
+      <div className="pointer-events-auto absolute right-4 top-4 rounded-2xl border border-white/15 bg-glass px-4 py-2.5 font-display text-lg font-extrabold tracking-[.08em] backdrop-blur max-sm:hidden">
         NOVA
       </div>
 
@@ -121,21 +118,21 @@ export function HomeScreen(props: HomeScreenProps) {
             if (demoCaptured.includes('blockchain')) { setDemoCaptured([]); setDemoJust(null) }
             else { setDemoCaptured(['blockchain']); setDemoJust('blockchain') }
           }}
-          className="absolute right-4 top-20 rounded-lg border border-dashed border-gold/60 bg-black/60 px-3 py-1.5 font-mono text-xs text-gold"
+          className="pointer-events-auto absolute right-4 top-20 rounded-lg border border-dashed border-gold/60 bg-black/60 px-3 py-1.5 font-mono text-xs text-gold"
         >
           DEV: {demoCaptured.includes('blockchain') ? 'reset orbit' : 'finish Blockchain'}
         </button>
       )}
 
       {toast && (
-        <div role="status" className="absolute left-1/2 top-4 z-30 max-w-[min(520px,calc(100%-32px))] -translate-x-1/2 rounded-2xl border border-white/15 bg-[#0b1124] px-4 py-2.5 text-sm shadow-2xl">
+        <div role="status" className="pointer-events-auto absolute left-1/2 top-4 z-30 max-w-[min(520px,calc(100%-32px))] -translate-x-1/2 rounded-2xl border border-white/15 bg-[#0b1124] px-4 py-2.5 text-sm shadow-2xl">
           {toast}
         </div>
       )}
 
       {/* first visit: ask for a name (a real login page can replace this later) */}
       {editingName && (
-        <div className="absolute inset-0 z-20 grid place-items-center bg-void/60 p-6">
+        <div className="pointer-events-auto absolute inset-0 z-20 grid place-items-center bg-void/60 p-6">
           <form onSubmit={saveName} className="flex w-full max-w-[440px] flex-col gap-3.5 rounded-3xl border border-white/15 bg-glass p-7 backdrop-blur-lg">
             <span className="font-mono text-[11.5px] uppercase tracking-[.16em] text-mint">GUTS 2027 · Learn algorithms in 3D</span>
             <h1 className="font-display text-4xl font-extrabold leading-none tracking-wider">Nova</h1>

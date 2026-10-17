@@ -1,18 +1,15 @@
 /**
- * The 3D part of the Home screen: your star in the middle, planets drifting freely around it,
- * and completed planets pulled into orbit rings around the star.
+ * The 3D part of the Home screen: planets drifting freely around your star, and completed planets
+ * pulled into orbit rings around it. Rendered inside the shared Universe canvas, which already holds
+ * the background, ambient light, starfield, the star itself and bloom.
  */
 import { useMemo, useRef, type RefObject } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Html, Line, OrbitControls } from '@react-three/drei'
-import { Bloom, EffectComposer, ToneMapping } from '@react-three/postprocessing'
-import { ToneMappingMode } from 'postprocessing'
 import * as THREE from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { HOME_PLANETS, ORBIT_RADII, type HomePlanet, type PlanetId } from './planets'
 import { PlanetBody } from './PlanetBody'
-import { Sky } from './Sky'
-import { Star } from './Star'
 
 export interface HomeSceneProps {
   completedMoons: Partial<Record<PlanetId, number>>
@@ -147,12 +144,7 @@ function CameraRig({ focusId }: { focusId: PlanetId | null }) {
 export function HomeScene({ completedMoons, captured, justCaptured, focusId, onPlanetClick, labelRoot }: HomeSceneProps) {
   return (
     <>
-      <color attach="background" args={['#03040a']} />
-      {/* low ambient light keeps each planet's night side properly dark */}
-      <ambientLight color="#404a70" intensity={0.15} />
-      <Sky />
       <CameraRig focusId={focusId} />
-      <Star />
       {captured.map((id, slot) => <OrbitRing key={id} radius={ORBIT_RADII[slot]} />)}
       {HOME_PLANETS.map((p, i) => (
         <DriftingPlanet
@@ -167,12 +159,6 @@ export function HomeScene({ completedMoons, captured, justCaptured, focusId, onP
           onClick={() => onPlanetClick(p.id)}
         />
       ))}
-      {/* glow: makes the star and the bright atmosphere rims bleed light like a camera lens */}
-      <EffectComposer multisampling={4}>
-        <Bloom intensity={0.6} luminanceThreshold={0.8} luminanceSmoothing={0.2} mipmapBlur />
-        {/* tone mapping has to happen here: the renderer's own setting is skipped when effects are on */}
-        <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-      </EffectComposer>
     </>
   )
 }
