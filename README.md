@@ -1,6 +1,6 @@
 # Nova
 
-**A galaxy where every algorithm is a star system you can explore.**
+**A galaxy where every algorithm is a planet you can explore.**
 
 Team 36 project for the GUTS 2026 Hackathon.
 
