@@ -34,24 +34,49 @@ export const PLANET_VERT=`varying vec3 vObj;varying vec3 vN;varying vec3 vW;
 void main(){vObj=position;vec4 w=modelMatrix*vec4(position,1.0);vW=w.xyz;vN=normalize(mat3(modelMatrix)*normal);gl_Position=projectionMatrix*viewMatrix*w;}`;
 export const PLANET_FRAG=`uniform float uType;uniform float uT;uniform float uSeed;uniform vec3 uLight;uniform vec3 uA;uniform vec3 uB;uniform vec3 uC;uniform vec3 uD;uniform vec3 uCity;uniform vec3 uAtm;
 varying vec3 vObj;varying vec3 vN;varying vec3 vW;
+uniform mat4 modelMatrix; // three.js sets it for every program; the bump uses it to take sphere tangents to world space
 ${NOISE_GLSL}
-// Bump mapping from a height value using screen-space derivatives (no extra noise calls).
-vec3 bumpNormal(vec3 N,vec3 pos,float h,float scale){
- vec3 dpx=dFdx(pos),dpy=dFdy(pos); float dhx=dFdx(h),dhy=dFdy(h);
- vec3 r1=cross(dpy,N),r2=cross(N,dpx); float det=dot(dpx,r1);
- vec3 grad=sign(det)*(dhx*r1+dhy*r2);
- return normalize(abs(det)*N-grad*scale);
+// Height of an ocean world's land (the sea stays flat). Hands back the continent noise h and the surface detail for
+// the colouring. fine (0..1) fades in the finest noise, which only shimmers once it's smaller than a few pixels.
+float oceanHeight(vec3 p,float fine,out float h,out float detail){
+ h=fbm(p*1.8+uSeed);
+ detail=snoise(p*14.0+uSeed)*0.5+(fine>0.0?snoise(p*30.0)*0.25*fine:0.0);
+ return (h+detail*0.15)*smoothstep(0.02,0.08,h);
+}
+// Height of a rocky desert: dunes h, rough ground r, craters c (all reused by the colouring).
+float rockyHeight(vec3 p,out float h,out float r,out float c){
+ h=fbm(p*2.4+uSeed); r=fbm(p*9.0-uSeed)*0.5;
+ c=smoothstep(0.62,0.7,snoise(p*7.0+3.0)*0.5+0.5);
+ return h*0.6+r-c*0.4;
+}
+// Two directions along the unit sphere at p (object space).
+void sphereTangents(vec3 p,out vec3 t,out vec3 b){
+ t=normalize(cross(abs(p.y)<0.9?vec3(0.0,1.0,0.0):vec3(1.0,0.0,0.0),p)); b=cross(p,t);
+}
+// Smooth bump: h0 is the height at the point, ht and hb the heights eps further along t and b on the unit sphere.
+// Each pixel takes its own samples, so close up there are no 2x2 pixel blocks (as with screen-space derivatives).
+vec3 bumpNormal(vec3 N,vec3 t,vec3 b,float eps,float h0,float ht,float hb,float scale){
+ vec3 tw=mat3(modelMatrix)*t*length(vObj), bw=mat3(modelMatrix)*b*length(vObj); // world size of one unit-sphere unit along t, b
+ vec3 grad=(tw*(ht-h0)/dot(tw,tw)+bw*(hb-h0)/dot(bw,bw))/eps; // height gradient along the surface, per world unit
+ return normalize(N-grad*scale);
 }
 void main(){
  vec3 p=normalize(vObj); vec3 N=normalize(vN); vec3 L=normalize(uLight-vW); vec3 V=normalize(cameraPosition-vW);
  vec3 col; float spec=0.0; vec3 night=vec3(0.0); float cloud=0.0; float cloudShadow=0.0; float limb=1.0;
  vec3 Ns=N; // shading normal (bumped on rocky surfaces)
+ // About one pixel, in unit-sphere units (fov 42°, ~900px tall). The bump samples are never closer than that, so far
+ // away it keeps the same averaged look as before, and close up they are 0.002 apart.
+ float px=0.00085*length(cameraPosition-vW)/length(mat3(modelMatrix)*vObj);
+ float eps=max(0.002,px);
+ vec3 t,b; sphereTangents(p,t,b);
+ vec3 pt=normalize(p+t*eps), pb=normalize(p+b*eps);
  if(uType<0.5){
    // OCEAN WORLD: continents, ice caps, shiny seas, clouds that cast soft shadows, city lights at night
-   float h=fbm(p*1.8+uSeed);
+   float fine=1.0-smoothstep(0.004,0.008,px); // the p*30 noise fades out before it gets smaller than ~4px
+   float h,detail,hx,dx;
+   float h0=oceanHeight(p,fine,h,detail);
+   Ns=bumpNormal(N,t,b,eps,h0,oceanHeight(pt,fine,hx,dx),oceanHeight(pb,fine,hx,dx),0.35);
    float land=smoothstep(0.02,0.08,h);
-   float detail=snoise(p*14.0+uSeed)*0.5+snoise(p*30.0)*0.25;
-   Ns=bumpNormal(N,vW,(h+detail*0.15)*land,0.35);
    vec3 ocean=mix(uA,uB,smoothstep(-0.45,0.05,h));
    vec3 ground=mix(uC,uD,smoothstep(0.08,0.55,h+0.15*snoise(p*8.0)));
    ground*=0.85+0.3*(detail*0.5+0.5);
@@ -83,9 +108,9 @@ void main(){
    limb=mix(0.6,1.0,pow(max(dot(N,V),0.0),0.3));
  } else {
    // ROCKY DESERT: dunes, dark basins, craters with bumpy relief, small ice caps
-   float h=fbm(p*2.4+uSeed); float r=fbm(p*9.0-uSeed)*0.5;
-   float c=smoothstep(0.62,0.7,snoise(p*7.0+3.0)*0.5+0.5);
-   Ns=bumpNormal(N,vW,h*0.6+r-c*0.4,0.45);
+   float h,r,c,hx,rx,cx;
+   float h0=rockyHeight(p,h,r,c);
+   Ns=bumpNormal(N,t,b,eps,h0,rockyHeight(pt,hx,rx,cx),rockyHeight(pb,hx,rx,cx),0.45);
    col=mix(uA,uB,smoothstep(-0.5,0.5,h+r)); col=mix(col,uC,smoothstep(0.35,0.7,h)*0.6);
    col=mix(col,uD,c*0.6);
    float ice=smoothstep(0.88,0.93,abs(p.y)); col=mix(col,vec3(0.95,0.93,0.9),ice);
