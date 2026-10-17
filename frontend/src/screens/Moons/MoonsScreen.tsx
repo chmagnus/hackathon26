@@ -35,12 +35,13 @@ export interface MoonsScreenProps {
   progress?: ChapterProgress
   onSelectChapter?: (orbitNumber: number) => void
   onSelectMoon?: (moonId: string) => void
+  onCompleteMoon?: (moonId: string) => void
   renderConcept?: (moonId: string, handlers: ConceptHandlers) => ReactNode
 }
 
 const logMoon = (moonId: string) => console.log('select moon', moonId)
 
-export function MoonsScreen({ planet = MOCK_PLANET, progress: initialProgress = MOCK_PROGRESS, onSelectChapter, onSelectMoon = logMoon, renderConcept }: MoonsScreenProps) {
+export function MoonsScreen({ planet = MOCK_PLANET, progress: initialProgress = MOCK_PROGRESS, onSelectChapter, onSelectMoon = logMoon, onCompleteMoon, renderConcept }: MoonsScreenProps) {
   // concepts completed on the Concept page this session (until the shared progress store exists).
   // Memoized so re-renders during a concept transition don't rebuild the 3D moon system (see moonSystem below).
   const [justCompleted, setJustCompleted] = useState<string[]>([])
@@ -49,7 +50,6 @@ export function MoonsScreen({ planet = MOCK_PLANET, progress: initialProgress = 
     () => planet.orbits.map((orbit) => chapterState(orbit, planet.orbits, { completed })),
     [planet, completed],
   )
-
   const view = useView((s) => s.view)
   const zoomedIn = useView((s) => s.zoomedIn)
   const chapter = useView((s) => s.chapter)
@@ -103,7 +103,10 @@ export function MoonsScreen({ planet = MOCK_PLANET, progress: initialProgress = 
   const concept = useConceptTransition({
     planetId: planet.id,
     moons: focusedOrbit?.moons ?? [],
-    onCompleted: (id) => setJustCompleted((d) => (d.includes(id) ? d : [...d, id])),
+    onCompleted: (id) => {
+      if (onCompleteMoon) onCompleteMoon(id)
+      else setJustCompleted((d) => (d.includes(id) ? d : [...d, id]))
+    },
   })
   const { phase: conceptPhase, close: closeConcept, moonId: conceptMoonId, handlers: conceptHandlers } = concept
   function selectMoon(moonId: string, rect: DOMRect) {
@@ -142,8 +145,8 @@ export function MoonsScreen({ planet = MOCK_PLANET, progress: initialProgress = 
       <InUniverse>{moonSystem}</InUniverse>
 
       {/* overlay on top of the Universe canvas: lets the pointer through, except on its own panels and buttons */}
-      <div className={`pointer-events-none absolute inset-0 overflow-hidden font-body text-ink transition-[opacity,visibility] duration-500 ${here ? '' : 'invisible opacity-0'}`}>
-        <MoonsHud planet={planet} states={states} onBack={() => setView({ mode: 'universe' })} hideHint={chapter !== null} plain={concept.busy} />
+      <div inert={concept.busy} className={`pointer-events-none absolute inset-0 overflow-hidden font-body text-ink transition-[opacity,visibility] duration-500 ${here ? '' : 'invisible opacity-0'}`}>
+        <MoonsHud planet={planet} states={states} onBack={() => setView({ mode: 'universe' })} onSelectChapter={selectChapter} hideHint={chapter !== null} plain={concept.busy} />
 
         {focusedOrbit && (
           <ChapterPanel

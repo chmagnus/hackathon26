@@ -80,8 +80,10 @@ export default function HashingLesson(props: LessonProps) {
       'Any text goes in, a fixed-length fingerprint comes out.',
       'Compare fingerprints instead of comparing the whole text.',
       'Re-hash the line and compare it with the trusted fingerprint.',
-      'Same input, same hash. Change it and the hash changes.',
-    ][Math.min(active, 3)]
+      'A fingerprint does not encrypt the input or identify its author.',
+      'The reference fingerprint must itself be trustworthy.',
+      'Use the lesson to reason through the checkpoint.',
+    ][Math.min(active, 5)]
 
   const input = (value: string, set: (v: string) => void, label: string) => (
     <input
@@ -121,8 +123,10 @@ export default function HashingLesson(props: LessonProps) {
       'A hash is like a fingerprint for data. Type something and watch yours appear!',
       'Make A and B identical, then change just one letter. Watch the whole fingerprint flip!',
       'This is how you catch a sneaky edit: re-hash it and compare with the trusted fingerprint.',
-      'Quick check time. Same input in… what comes out?',
-    ][Math.min(active, 3)]
+      'A hash is not encryption, and guessing short secrets can still be possible.',
+      'Ask what anchors the saved fingerprint. Replacing both values can hide a rewrite.',
+      'Quick check time. Think about what exactly stays the same between repeated calculations.',
+    ][Math.min(active, 5)]
 
   return <StoryLayout {...props} renderStage={renderStage} caption={caption} renderExtra={renderExtra} algoSays={algoSays} />
 }

@@ -1,3 +1,6 @@
+/** Shared API contract; content errors are shown rather than replaced with stale lessons. */
+export { fetchMoon } from '../../api/content'
+export type { Moon, DialogueStep } from '../../api/content'
 // Loads one moon (lesson) from the backend content API:
 //   GET /api/systems/{planetId}/moons/{moonId}
 // If the backend isn't running yet, it falls back to a built-in copy of the lessons
