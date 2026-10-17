@@ -60,7 +60,7 @@ export function PlanetBody({ planet, onClick }: { planet: HomePlanet; onClick?: 
         ref={surface}
         material={surfaceMat}
         onClick={onClick}
-        onPointerOver={() => { document.body.style.cursor = 'pointer' }}
+        onPointerOver={() => { if (onClick) document.body.style.cursor = 'pointer' }}
         onPointerOut={() => { document.body.style.cursor = '' }}
       >
         <sphereGeometry args={[radius, 64, 48]} />

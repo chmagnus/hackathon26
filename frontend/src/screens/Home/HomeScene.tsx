@@ -1,18 +1,15 @@
 /**
- * The 3D part of the Home screen: your star in the middle, planets drifting freely around it,
- * and completed planets pulled into orbit rings around the star.
+ * The 3D part of the Home screen: planets drifting freely around your star, and completed planets
+ * pulled into orbit rings around it. Rendered inside the shared Universe canvas, which already holds
+ * the background, ambient light, starfield, the star itself, the camera rig and bloom.
  */
 import { useMemo, useRef, type RefObject } from 'react'
-import { useFrame, useThree } from '@react-three/fiber'
-import { Html, Line, OrbitControls } from '@react-three/drei'
-import { Bloom, EffectComposer, ToneMapping } from '@react-three/postprocessing'
-import { ToneMappingMode } from 'postprocessing'
+import { useFrame } from '@react-three/fiber'
+import { Html, Line } from '@react-three/drei'
 import * as THREE from 'three'
-import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
+import { planetPositions } from '../../galaxy/view'
 import { HOME_PLANETS, ORBIT_RADII, type HomePlanet, type PlanetId } from './planets'
 import { PlanetBody } from './PlanetBody'
-import { Sky } from './Sky'
-import { Star } from './Star'
 
 export interface HomeSceneProps {
   completedMoons: Partial<Record<PlanetId, number>>
@@ -20,18 +17,12 @@ export interface HomeSceneProps {
   captured: PlanetId[]
   /** a planet that was completed just before coming back here: plays the pull-into-orbit animation */
   justCaptured?: PlanetId | null
-  /** planet the camera is flying to (set when one is clicked) */
-  focusId: PlanetId | null
+  /** while the camera is on (or closing in on) a planet: labels fade out and planets can't be clicked */
+  labelsHidden: boolean
   onPlanetClick: (id: PlanetId) => void
   /** element the planet labels are attached to. Without a fixed one, drei rebuilds the labels after the first frame and the first label comes out empty. */
   labelRoot: RefObject<HTMLDivElement>
 }
-
-const START = new THREE.Vector3(0, 38, 84)
-const ORIGIN = new THREE.Vector3(0, 0, 0)
-
-/** Shared mutable positions so the camera can follow a moving planet. */
-const positions: Partial<Record<PlanetId, THREE.Vector3>> = {}
 
 function OrbitRing({ radius }: { radius: number }) {
   const points = useMemo(() => Array.from({ length: 181 }, (_, k) => {
@@ -70,7 +61,8 @@ function DriftingPlanet({ planet, index, done, slot, animateIn, showLabel, label
       const eased = c < 0.5 ? 2 * c * c : 1 - (-2 * c + 2) ** 2 / 2
       pos.lerp(orbit, eased)
     }
-    positions[planet.id] = pos
+    // shared so the camera rig can follow a moving planet
+    planetPositions[planet.id] = pos
   })
 
   const inOrbit = slot >= 0
@@ -78,7 +70,8 @@ function DriftingPlanet({ planet, index, done, slot, animateIn, showLabel, label
 
   return (
     <group ref={group}>
-      <PlanetBody planet={planet} onClick={(e) => { e.stopPropagation(); onClick() }} />
+      {/* not clickable while the camera is on a planet (labels hidden) */}
+      <PlanetBody planet={planet} onClick={showLabel ? (e) => { e.stopPropagation(); onClick() } : undefined} />
       {/* always mounted (unmounting drei <Html> mid-frame can crash); just faded out while flying */}
       <Html portal={labelRoot} position={[0, planet.radius + 1.6, 0]} center zIndexRange={[10, 0]} style={{ opacity: showLabel ? 1 : 0, transition: 'opacity .3s', pointerEvents: showLabel ? 'auto' : 'none' }}>
           <button
@@ -95,64 +88,11 @@ function DriftingPlanet({ planet, index, done, slot, animateIn, showLabel, label
   )
 }
 
-/** Drag to orbit, scroll to zoom; flies towards a planet when `focusId` is set. */
-function CameraRig({ focusId }: { focusId: PlanetId | null }) {
-  const controls = useRef<OrbitControlsImpl>(null)
-  const camera = useThree((s) => s.camera)
-  const aspect = useThree((s) => s.size.width / s.size.height)
-  const intro = useRef(1.8)
-  const lastFocus = useRef<PlanetId | null>(null)
-  // pull the camera back on tall/narrow screens so every planet still fits
-  const start = useMemo(() => START.clone().multiplyScalar(Math.max(1, Math.pow(1.5 / aspect, 0.72))), [aspect])
+// the camera (intro, auto-rotate, fly to planet) is the shared rig in src/galaxy/CameraRig.tsx
 
-  useFrame((_, dt) => {
-    const c = controls.current
-    if (!c) return
-    if (lastFocus.current && !focusId) intro.current = 1.8 // fly back out after a planet was focused
-    lastFocus.current = focusId
-    const target = focusId ? positions[focusId] : undefined
-    if (target) {
-      c.enabled = false
-      c.target.lerp(target, Math.min(1, dt * 3))
-      const away = camera.position.clone().sub(target).normalize().multiplyScalar(14)
-      camera.position.lerp(target.clone().add(away), Math.min(1, dt * 3))
-      camera.lookAt(c.target) // controls are disabled here, so aim the camera ourselves
-    } else {
-      c.enabled = true
-      if (intro.current > 0) {
-        // gentle fly-in when the screen first appears
-        intro.current -= dt
-        camera.position.lerp(start, Math.min(1, dt * 2))
-        c.target.lerp(ORIGIN, Math.min(1, dt * 2))
-      }
-    }
-    // no c.update() here: drei's <OrbitControls> already updates every frame, and updating twice made the camera jitter
-  })
-
-  return (
-    <OrbitControls
-      ref={controls}
-      makeDefault
-      enablePan={false}
-      enableDamping
-      minDistance={30}
-      maxDistance={260}
-      autoRotate={!focusId}
-      autoRotateSpeed={0.25}
-      maxPolarAngle={Math.PI * 0.8}
-    />
-  )
-}
-
-export function HomeScene({ completedMoons, captured, justCaptured, focusId, onPlanetClick, labelRoot }: HomeSceneProps) {
+export function HomeScene({ completedMoons, captured, justCaptured, labelsHidden, onPlanetClick, labelRoot }: HomeSceneProps) {
   return (
     <>
-      <color attach="background" args={['#03040a']} />
-      {/* low ambient light keeps each planet's night side properly dark */}
-      <ambientLight color="#404a70" intensity={0.15} />
-      <Sky />
-      <CameraRig focusId={focusId} />
-      <Star />
       {captured.map((id, slot) => <OrbitRing key={id} radius={ORBIT_RADII[slot]} />)}
       {HOME_PLANETS.map((p, i) => (
         <DriftingPlanet
@@ -162,17 +102,11 @@ export function HomeScene({ completedMoons, captured, justCaptured, focusId, onP
           done={completedMoons[p.id] ?? 0}
           slot={captured.indexOf(p.id)}
           animateIn={justCaptured === p.id}
-          showLabel={!focusId}
+          showLabel={!labelsHidden}
           labelRoot={labelRoot}
           onClick={() => onPlanetClick(p.id)}
         />
       ))}
-      {/* glow: makes the star and the bright atmosphere rims bleed light like a camera lens */}
-      <EffectComposer multisampling={4}>
-        <Bloom intensity={0.6} luminanceThreshold={0.8} luminanceSmoothing={0.2} mipmapBlur />
-        {/* tone mapping has to happen here: the renderer's own setting is skipped when effects are on */}
-        <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-      </EffectComposer>
     </>
   )
 }
