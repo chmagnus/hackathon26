@@ -5,7 +5,7 @@
  *
  * Plug-in points for the rest of the app:
  *  - completedMoons / captured / justCaptured: progress from the shared state (whoever owns it)
- *  - onSelectPlanet(id): called once the camera has arrived at the clicked planet -> show screen 2 (Moons).
+ *  - onSelectPlanet(id): called once the camera has arrived at the clicked planet (the Moon overlay shows from there).
  *    Only live planets fly in; "coming soon" ones just show a toast.
  * If those props aren't passed, the screen runs on its own with demo progress so it can be built and tested alone.
  *
@@ -68,18 +68,11 @@ export function HomeScreen(props: HomeScreenProps) {
     setView({ mode: 'planet', id })
   }
 
-  // once the camera has arrived at the planet, hand over to the parent (-> Moons screen)
+  // once the camera has arrived at the planet, let the parent know (the Moon overlay takes over from here)
   const onSelectPlanet = useRef(props.onSelectPlanet)
   useEffect(() => { onSelectPlanet.current = props.onSelectPlanet })
   useEffect(() => useView.subscribe((s, prev) => {
-    if (!s.arrived || prev.arrived || s.view.mode !== 'planet') return
-    const id = s.view.id
-    if (onSelectPlanet.current) onSelectPlanet.current(id)
-    else {
-      // no Moons screen hooked up: fly back out and say so
-      showToast(`${HOME_PLANETS.find((p) => p.id === id)!.name}: the Moons screen (screen 2) opens here.`)
-      s.setView({ mode: 'universe' })
-    }
+    if (s.arrived && !prev.arrived && s.view.mode === 'planet') onSelectPlanet.current?.(s.view.id)
   }), [])
 
   function saveName(e: FormEvent) {
@@ -100,8 +93,9 @@ export function HomeScreen(props: HomeScreenProps) {
   const inOrbit = captured.length
 
   return (
-    // overlay on top of the Universe canvas: lets the pointer through, except on its own panels and buttons
-    <div className="pointer-events-none absolute inset-0 overflow-hidden font-body text-ink">
+    // overlay on top of the Universe canvas: lets the pointer through, except on its own panels and buttons.
+    // Fades out while the camera is on a planet (the Moon overlay shows there instead).
+    <div className={`pointer-events-none absolute inset-0 overflow-hidden font-body text-ink transition-[opacity,visibility] duration-300 ${focusId ? 'invisible opacity-0' : ''}`}>
       <InUniverse>
         <HomeScene completedMoons={completedMoons} captured={captured} justCaptured={justCaptured} focusId={focusId} onPlanetClick={selectPlanet} labelRoot={universeLabelRoot} />
       </InUniverse>
