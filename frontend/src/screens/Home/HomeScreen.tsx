@@ -5,15 +5,17 @@
  *
  * Plug-in points for the rest of the app:
  *  - completedMoons / captured / justCaptured: progress from the shared state (whoever owns it)
- *  - onSelectPlanet(id): called after the camera flies to the clicked planet -> show screen 2 (Moons)
+ *  - onSelectPlanet(id): called once the camera has arrived at the clicked planet -> show screen 2 (Moons).
+ *    Only live planets fly in; "coming soon" ones just show a toast.
  * If those props aren't passed, the screen runs on its own with demo progress so it can be built and tested alone.
  *
  * The 3D scene is drawn in the shared Universe canvas (src/galaxy), which must be mounted alongside this screen;
  * this component is the 2D overlay on top of it.
  */
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { universeLabelRoot } from '../../galaxy/labelRoot'
 import { InUniverse } from '../../galaxy/tunnel'
+import { useView } from '../../galaxy/view'
 import { HomeScene } from './HomeScene'
 import { HOME_PLANETS, type PlanetId } from './planets'
 import { playPlanetClick } from '../../shared/sounds'
@@ -44,23 +46,41 @@ export function HomeScreen(props: HomeScreenProps) {
   const [name, setName] = useState<string | null>(readName)
   const [editingName, setEditingName] = useState(name === null)
   const [draft, setDraft] = useState(name ?? '')
-  const [focusId, setFocusId] = useState<PlanetId | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const showToast = (text: string) => {
+    setToast(text)
+    setTimeout(() => setToast(null), 3500)
+  }
+
+  // the shared camera (src/galaxy) decides where we are: in planet mode, labels hide and planets can't be clicked
+  const view = useView((s) => s.view)
+  const setView = useView((s) => s.setView)
+  const focusId = view.mode === 'planet' ? view.id : null
 
   function selectPlanet(id: PlanetId) {
     if (focusId) return
     playPlanetClick()
-    setFocusId(id)
-    setTimeout(() => {
-      if (props.onSelectPlanet) props.onSelectPlanet(id)
-      else {
-        // no Moons screen hooked up yet: fly back out and say so
-        setToast(`${HOME_PLANETS.find((p) => p.id === id)!.name}: the Moons screen (screen 2) opens here.`)
-        setTimeout(() => setToast(null), 3500)
-        setFocusId(null)
-      }
-    }, 900)
+    const planet = HOME_PLANETS.find((p) => p.id === id)!
+    if (!planet.live) {
+      showToast(`${planet.name} is coming soon.`)
+      return
+    }
+    setView({ mode: 'planet', id })
   }
+
+  // once the camera has arrived at the planet, hand over to the parent (-> Moons screen)
+  const onSelectPlanet = useRef(props.onSelectPlanet)
+  useEffect(() => { onSelectPlanet.current = props.onSelectPlanet })
+  useEffect(() => useView.subscribe((s, prev) => {
+    if (!s.arrived || prev.arrived || s.view.mode !== 'planet') return
+    const id = s.view.id
+    if (onSelectPlanet.current) onSelectPlanet.current(id)
+    else {
+      // no Moons screen hooked up: fly back out and say so
+      showToast(`${HOME_PLANETS.find((p) => p.id === id)!.name}: the Moons screen (screen 2) opens here.`)
+      s.setView({ mode: 'universe' })
+    }
+  }), [])
 
   function saveName(e: FormEvent) {
     e.preventDefault()

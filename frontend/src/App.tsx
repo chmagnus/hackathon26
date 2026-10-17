@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Universe } from './galaxy/Universe'
+import { useView } from './galaxy/view'
 import { HomeScreen } from './screens/Home/HomeScreen'
 import { HOME_PLANETS, type PlanetId } from './screens/Home/planets'
 import { MoonsScreen } from './screens/Moons/MoonsScreen'
@@ -7,12 +8,8 @@ import { MoonsScreen } from './screens/Moons/MoonsScreen'
 // Which screen is showing. Kept as plain state for now; maps to routes later ('/' and '/:planetId').
 type Screen = { name: 'home' } | { name: 'moons'; planetId: PlanetId }
 
-/** Planets whose Moon screen exists. MoonsScreen only has blockchain data so far. */
-const OPEN_PLANETS: PlanetId[] = ['blockchain']
-const TOAST_MS = 4000
-
 /*
- * Warp transition. Each screen has its own WebGL canvas, so swapping them flashes black while the new one starts.
+ * Warp transition. The Moon screen still has its own WebGL canvas (until step 3), so swapping to it flashes black while it starts.
  * A full-screen glow covers the swap: fade in -> switch screens underneath -> wait for the new scene's first frame -> fade out.
  */
 const REDUCED_MOTION = typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
@@ -47,36 +44,24 @@ function warpStyle(phase: WarpPhase, kind: WarpKind, colour: string): CSSPropert
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>({ name: 'home' })
-  // bumped to remount Home: after onSelectPlanet it keeps its camera on the planet and ignores further clicks
-  const [homeKey, setHomeKey] = useState(0)
-
-  const [toast, setToast] = useState<string | null>(null)
-  const [toastVisible, setToastVisible] = useState(false)
-  const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
-  function showToast(text: string) {
-    setToast(text)
-    setToastVisible(true)
-    clearTimeout(toastTimer.current)
-    toastTimer.current = setTimeout(() => setToastVisible(false), TOAST_MS)
-  }
 
   const [warp, setWarp] = useState<{ phase: WarpPhase; kind: WarpKind }>({ phase: 'idle', kind: 'forward' })
   // mirrors warp.phase for timer callbacks, which would otherwise see a stale value
   const warpPhase = useRef<WarpPhase>('idle')
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
   const later = (fn: () => void, ms: number) => { timers.current.push(setTimeout(fn, ms)) }
-  useEffect(() => () => {
-    clearTimeout(toastTimer.current)
-    timers.current.forEach(clearTimeout)
-  }, [])
+  useEffect(() => () => timers.current.forEach(clearTimeout), [])
 
   function setPhase(phase: WarpPhase, kind?: WarpKind) {
     warpPhase.current = phase
     setWarp((w) => ({ phase, kind: kind ?? w.kind }))
   }
 
-  /** Cover the screen, switch to `next` underneath, and uncover once it reports ready (or after a timeout). */
-  function warpTo(next: Screen, kind: WarpKind) {
+  /**
+   * Cover the screen, switch to `next` underneath (running `onSwitch` at the same moment),
+   * and uncover once it reports ready (or after a timeout).
+   */
+  function warpTo(next: Screen, kind: WarpKind, onSwitch?: () => void) {
     if (warpPhase.current !== 'idle') return
     // drop the previous warp's leftover ready-timeout so it can't uncover this one early
     timers.current.forEach(clearTimeout)
@@ -84,6 +69,7 @@ export default function App() {
     setPhase('cover', kind)
     later(() => {
       setScreen(next)
+      onSwitch?.()
       later(reveal, READY_TIMEOUT_MS)
     }, COVER_MS)
   }
@@ -108,15 +94,14 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [screen])
 
+  // Home only calls this for live planets, once the shared camera has arrived (coming-soon ones toast in Home)
   function selectPlanet(planetId: PlanetId) {
-    if (OPEN_PLANETS.includes(planetId)) {
-      // Home has already flown its camera into the planet; the warp carries on from there
-      warpTo({ name: 'moons', planetId }, 'forward')
-      return
-    }
-    const name = HOME_PLANETS.find((p) => p.id === planetId)?.name ?? 'This planet'
-    showToast(`${name} is coming soon.`)
-    setHomeKey((k) => k + 1)
+    warpTo({ name: 'moons', planetId }, 'forward')
+  }
+
+  // the shared camera flies back out to the overview while the warp uncovers Home
+  function backToUniverse() {
+    warpTo({ name: 'home' }, 'back', () => useView.getState().setView({ mode: 'universe' }))
   }
 
   const planetId = screen.name === 'moons' ? screen.planetId : 'blockchain'
@@ -124,25 +109,15 @@ export default function App() {
 
   return (
     <div className="relative h-full overflow-hidden">
-      {screen.name === 'moons' ? (
+      {/* Universe and Home stay mounted throughout, so the camera can fly back out from the planet.
+          Step 2 of the shared-canvas plan: the Moon screen still has its own canvas, drawn on top of them. */}
+      <Universe />
+      <div className={screen.name === 'moons' ? 'invisible' : undefined}>
+        <HomeScreen onSelectPlanet={selectPlanet} />
+      </div>
+      {screen.name === 'moons' && (
         // planetId will choose the planet once content comes from the API
-        <MoonsScreen onBack={() => warpTo({ name: 'home' }, 'back')} onReady={reveal} />
-      ) : (
-        // shared canvas + Home's overlay. Step 1 of the shared-canvas plan: the Moon screen still has its own canvas,
-        // so Universe is only mounted with Home for now.
-        <>
-          <Universe />
-          <HomeScreen key={homeKey} onSelectPlanet={selectPlanet} />
-        </>
-      )}
-
-      {toast && (
-        <div
-          role="status"
-          className={`pointer-events-none absolute bottom-16 left-1/2 z-40 max-w-[min(520px,calc(100%-32px))] -translate-x-1/2 rounded-[14px] border border-[rgba(140,170,255,.17)] bg-[#0b1124] px-4 py-[11px] font-body text-[14.5px] text-ink shadow-[0_12px_40px_rgba(0,0,0,.5)] transition-all duration-300 ${toastVisible ? 'translate-y-0 opacity-100' : 'translate-y-2.5 opacity-0'}`}
-        >
-          {toast}
-        </div>
+        <MoonsScreen onBack={backToUniverse} onReady={reveal} />
       )}
 
       {/* warp overlay: always mounted so its fade-in can transition from the idle state */}

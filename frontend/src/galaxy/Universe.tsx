@@ -1,13 +1,15 @@
 /**
  * THE UNIVERSE: the one shared WebGL canvas.
- * Holds what every screen shares (background, ambient light, starfield, the user's star, bloom + tone mapping
- * and the 3D label container). Screens add their own 3D with <InUniverse> and draw their 2D overlays on top.
+ * Holds what every screen shares (background, ambient light, starfield, the user's star, the camera rig,
+ * bloom + tone mapping and the 3D label container). Screens add their own 3D with <InUniverse> and draw
+ * their 2D overlays on top. The camera is driven by useView() (src/galaxy/view.ts).
  */
 import { Canvas } from '@react-three/fiber'
 import { Bloom, EffectComposer, ToneMapping } from '@react-three/postprocessing'
 import { ToneMappingMode } from 'postprocessing'
 import { Sky } from '../screens/Home/Sky'
 import { Star } from '../screens/Home/Star'
+import { CameraRig } from './CameraRig'
 import { universeLabelRoot } from './labelRoot'
 import { UniverseContents } from './tunnel'
 
@@ -25,6 +27,7 @@ export function Universe() {
         <ambientLight color="#404a70" intensity={0.15} />
         <Sky />
         <Star />
+        <CameraRig />
 
         <UniverseContents />
 
