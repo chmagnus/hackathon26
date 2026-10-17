@@ -4,15 +4,15 @@
  */
 import { useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { Html, Line, OrbitControls, Stars } from '@react-three/drei'
+import { Html, Line, OrbitControls } from '@react-three/drei'
 import { Bloom, EffectComposer, ToneMapping } from '@react-three/postprocessing'
 import { ToneMappingMode } from 'postprocessing'
 import * as THREE from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { HOME_PLANETS, ORBIT_RADII, type HomePlanet, type PlanetId } from './planets'
 import { PlanetBody } from './PlanetBody'
+import { Sky } from './Sky'
 import { Star } from './Star'
-import { radialTexture } from './textures'
 
 export interface HomeSceneProps {
   completedMoons: Partial<Record<PlanetId, number>>
@@ -142,32 +142,13 @@ function CameraRig({ focusId }: { focusId: PlanetId | null }) {
   )
 }
 
-function Nebula() {
-  const tex = useMemo(() => radialTexture([[0, 'rgba(255,255,255,.9)'], [0.4, 'rgba(255,255,255,.25)'], [1, 'rgba(255,255,255,0)']]), [])
-  const clouds: [string, [number, number, number], number, number][] = [
-    ['#1d6f80', [320, 160, -560], 560, 0.2],
-    ['#6b3a63', [-460, -90, -460], 500, 0.16],
-    ['#2a4c9a', [60, -280, -640], 460, 0.14],
-  ]
-  return (
-    <>
-      {clouds.map(([color, pos, size, opacity], i) => (
-        <sprite key={i} position={pos} scale={size}>
-          <spriteMaterial map={tex} color={color} transparent opacity={opacity} depthWrite={false} blending={THREE.AdditiveBlending} />
-        </sprite>
-      ))}
-    </>
-  )
-}
-
 export function HomeScene({ completedMoons, captured, justCaptured, focusId, onPlanetClick }: HomeSceneProps) {
   return (
     <>
       <color attach="background" args={['#03040a']} />
       {/* low ambient light keeps each planet's night side properly dark */}
       <ambientLight color="#404a70" intensity={0.15} />
-      <Stars radius={300} depth={200} count={5000} factor={5} saturation={0.2} fade speed={0.4} />
-      <Nebula />
+      <Sky />
       <CameraRig focusId={focusId} />
       <Star />
       {captured.map((id, slot) => <OrbitRing key={id} radius={ORBIT_RADII[slot]} />)}
