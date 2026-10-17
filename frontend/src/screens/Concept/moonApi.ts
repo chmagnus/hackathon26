@@ -18,7 +18,23 @@ export type Moon = {
   suggested: string[]
 }
 
-export async function fetchMoon(planetId: string, moonId: string): Promise<Moon> {
+// One request per moon: callers share the same promise, so the Moon screen can prefetch a chapter's lessons
+// and the page reuses them. A failed fetch is dropped from the cache so the next call retries.
+const cache = new Map<string, Promise<Moon>>()
+
+export function fetchMoon(planetId: string, moonId: string): Promise<Moon> {
+  const key = `${planetId}/${moonId}`
+  let request = cache.get(key)
+  if (!request) {
+    request = loadMoon(planetId, moonId)
+    cache.set(key, request)
+    const sent = request
+    sent.catch(() => { if (cache.get(key) === sent) cache.delete(key) })
+  }
+  return request
+}
+
+async function loadMoon(planetId: string, moonId: string): Promise<Moon> {
   try {
     const res = await fetch(`/api/systems/${planetId}/moons/${moonId}`)
     // Without the backend, Vite answers with its own HTML page, so check it's really JSON

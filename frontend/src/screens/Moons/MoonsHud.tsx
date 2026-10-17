@@ -15,9 +15,12 @@ export interface MoonsHudProps {
   onBack?: () => void
   /** hide the bottom hint (e.g. while a chapter is focused) */
   hideHint?: boolean
+  /** drop the backdrop blur (plain fill instead) while a concept page transition runs over the moving scene */
+  plain?: boolean
 }
 
-export function MoonsHud({ planet, states, onBack, hideHint }: MoonsHudProps) {
+export function MoonsHud({ planet, states, onBack, hideHint, plain = false }: MoonsHudProps) {
+  const glass = plain ? 'bg-[rgba(9,13,28,.95)]' : 'bg-glass backdrop-blur'
   const currentIdx = states.indexOf('current')
   const current = currentIdx >= 0 ? planet.orbits[currentIdx] : null
   const done = states.filter((s) => s === 'completed').length
@@ -31,11 +34,11 @@ export function MoonsHud({ planet, states, onBack, hideHint }: MoonsHudProps) {
         <button
           type="button"
           onClick={onBack}
-          className={`${EDGE} rounded-[10px] bg-glass px-3 py-[7px] text-[13.5px] font-bold text-ink backdrop-blur hover:brightness-125 active:translate-y-px`}
+          className={`${EDGE} rounded-[10px] ${glass} px-3 py-[7px] text-[13.5px] font-bold text-ink hover:brightness-125 active:translate-y-px`}
         >
           ← Universe
         </button>
-        <div className={`${EDGE} rounded-[14px] bg-glass px-3.5 py-2.5 backdrop-blur-md`}>
+        <div className={`${EDGE} rounded-[14px] ${glass} px-3.5 py-2.5`}>
           <div className="font-mono text-[11.5px] uppercase tracking-[.16em] text-mint">Planet</div>
           <h2 className="mt-0.5 font-display text-[17px] font-bold tracking-[.05em]">{planet.title}</h2>
           <div className="mt-2 flex gap-[5px]" role="img" aria-label={`${done} of ${states.length} chapters complete`}>
@@ -48,7 +51,7 @@ export function MoonsHud({ planet, states, onBack, hideHint }: MoonsHudProps) {
 
       {hint && !hideHint && (
         <div className="absolute bottom-3.5 left-1/2 w-[min(720px,calc(100%-32px))] -translate-x-1/2 text-center">
-          <span className={`${EDGE} inline-block rounded-full bg-glass px-4 py-2 text-sm text-[#cdd5ea] backdrop-blur`}>{hint}</span>
+          <span className={`${EDGE} inline-block rounded-full ${glass} px-4 py-2 text-sm text-[#cdd5ea]`}>{hint}</span>
         </div>
       )}
     </div>
