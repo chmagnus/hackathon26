@@ -32,7 +32,11 @@ export function focusCameraPosition(target: { x: number; y: number; z: number })
   return [target.x + target.x * out, target.y + FOCUS_DISTANCE * Math.sin(CAMERA_ELEVATION), target.z + target.z * out]
 }
 
-const reducedMotion = typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+export const REDUCED_MOTION = typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+const reducedMotion = REDUCED_MOTION
+
+/** Where the camera starts when the screen opens: close to the planet, then it eases back to the default view (the warp zoom continuing). */
+export const INTRO_DISTANCE = 10
 
 /** Angle of chapter `index` (0-based) on the ring. The first chapter starts at the back. */
 export function chapterAngle(index: number, count: number, time: number): number {

@@ -268,9 +268,21 @@ export interface MoonsSceneProps {
   onArrive: (orbitNumber: number) => void
   /** element the chapter labels are attached to. Without a fixed one, drei rebuilds the labels after the first frame and the first label comes out empty. */
   labelRoot: RefObject<HTMLDivElement>
+  /** called once, after the first frame has been drawn */
+  onReady?: () => void
 }
 
-export function MoonsScene({ planet, states, focused, onSelectChapter, onArrive, labelRoot }: MoonsSceneProps) {
+/** Calls onReady on the second frame: by then the first one (with all its shader compiling) is on screen. */
+function ReadySignal({ onReady }: { onReady?: () => void }) {
+  const frames = useRef(0)
+  useFrame(() => {
+    frames.current++
+    if (frames.current === 2) onReady?.()
+  })
+  return null
+}
+
+export function MoonsScene({ planet, states, focused, onSelectChapter, onArrive, labelRoot, onReady }: MoonsSceneProps) {
   const count = planet.orbits.length
   const paused = focused !== null
   const orbitClock = useRef(0)
@@ -315,6 +327,7 @@ export function MoonsScene({ planet, states, focused, onSelectChapter, onArrive,
       </group>
 
       <CameraRig focused={focused} groups={groups} onArrive={onArrive} />
+      <ReadySignal onReady={onReady} />
 
       {/* same glow and tone mapping as Home */}
       <EffectComposer multisampling={4}>
