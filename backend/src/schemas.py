@@ -1,3 +1,4 @@
+
 """Learning-content API models shared by the content and tutor backends.
 
 Keep the agreed system/star API names: a system is a planet and its star field
@@ -5,6 +6,9 @@ contains the planet introduction. Coordinate field changes with the frontend.
 """
 
 from pydantic import BaseModel, Field, model_validator
+from typing import Literal
+
+
 
 
 class Check(BaseModel):
@@ -82,3 +86,22 @@ class SystemSummary(BaseModel):
     title: str = Field(min_length=1)
     colour: str = Field(pattern=r"^#[0-9a-fA-F]{6}$")
     moon_count: int = Field(ge=0)
+
+
+class ChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=2000)
+
+
+class WidgetEvent(BaseModel):
+    type: str
+    data: dict
+    at: float
+
+
+class TutorRequest(BaseModel):
+    system: str
+    moon_id: str
+    messages: list[ChatMessage] = Field(min_length=1, max_length=20)
+    completed: list[str] = []
+    widget_events: list[WidgetEvent] = []

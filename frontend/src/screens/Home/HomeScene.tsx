@@ -2,7 +2,7 @@
  * The 3D part of the Home screen: your star in the middle, planets drifting freely around it,
  * and completed planets pulled into orbit rings around the star.
  */
-import { useMemo, useRef } from 'react'
+import { useMemo, useRef, type RefObject } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Html, Line, OrbitControls } from '@react-three/drei'
 import { Bloom, EffectComposer, ToneMapping } from '@react-three/postprocessing'
@@ -23,6 +23,8 @@ export interface HomeSceneProps {
   /** planet the camera is flying to (set when one is clicked) */
   focusId: PlanetId | null
   onPlanetClick: (id: PlanetId) => void
+  /** element the planet labels are attached to. Without a fixed one, drei rebuilds the labels after the first frame and the first label comes out empty. */
+  labelRoot: RefObject<HTMLDivElement>
 }
 
 const START = new THREE.Vector3(0, 38, 84)
@@ -39,8 +41,8 @@ function OrbitRing({ radius }: { radius: number }) {
   return <Line points={points} color="#ffcf5a" dashed dashSize={0.5} gapSize={0.5} transparent opacity={0.4} lineWidth={1} />
 }
 
-function DriftingPlanet({ planet, index, done, slot, animateIn, showLabel, onClick }: {
-  planet: HomePlanet; index: number; done: number; slot: number; animateIn: boolean; showLabel: boolean; onClick: () => void
+function DriftingPlanet({ planet, index, done, slot, animateIn, showLabel, labelRoot, onClick }: {
+  planet: HomePlanet; index: number; done: number; slot: number; animateIn: boolean; showLabel: boolean; labelRoot: RefObject<HTMLDivElement>; onClick: () => void
 }) {
   const group = useRef<THREE.Group>(null)
   // 0 = drifting freely, 1 = locked in orbit. A planet captured while you watch animates from 0 to 1.
@@ -78,7 +80,7 @@ function DriftingPlanet({ planet, index, done, slot, animateIn, showLabel, onCli
     <group ref={group}>
       <PlanetBody planet={planet} onClick={(e) => { e.stopPropagation(); onClick() }} />
       {/* always mounted (unmounting drei <Html> mid-frame can crash); just faded out while flying */}
-      <Html position={[0, planet.radius + 1.6, 0]} center zIndexRange={[10, 0]} style={{ opacity: showLabel ? 1 : 0, transition: 'opacity .3s', pointerEvents: showLabel ? 'auto' : 'none' }}>
+      <Html portal={labelRoot} position={[0, planet.radius + 1.6, 0]} center zIndexRange={[10, 0]} style={{ opacity: showLabel ? 1 : 0, transition: 'opacity .3s', pointerEvents: showLabel ? 'auto' : 'none' }}>
           <button
             onClick={onClick}
             className={`block cursor-pointer whitespace-nowrap rounded-xl border bg-[#060914]/80 px-3 py-1.5 text-center backdrop-blur ${
@@ -142,7 +144,7 @@ function CameraRig({ focusId }: { focusId: PlanetId | null }) {
   )
 }
 
-export function HomeScene({ completedMoons, captured, justCaptured, focusId, onPlanetClick }: HomeSceneProps) {
+export function HomeScene({ completedMoons, captured, justCaptured, focusId, onPlanetClick, labelRoot }: HomeSceneProps) {
   return (
     <>
       <color attach="background" args={['#03040a']} />
@@ -161,6 +163,7 @@ export function HomeScene({ completedMoons, captured, justCaptured, focusId, onP
           slot={captured.indexOf(p.id)}
           animateIn={justCaptured === p.id}
           showLabel={!focusId}
+          labelRoot={labelRoot}
           onClick={() => onPlanetClick(p.id)}
         />
       ))}
