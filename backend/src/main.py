@@ -1,20 +1,43 @@
-from fastapi import FastAPI, HTTPException
+import json
+import logging
+
 from pydantic import BaseModel
+from .routes.systems import router as systems_router
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import JSONResponse, StreamingResponse
+
+from schemas import TutorRequest
+from settings import get_settings
+from tutor import build_system_prompt, stream_with_fallback, within_daily_cap
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("nova")
 
 app = FastAPI(title="Nova API")
+app.include_router(systems_router)
 
-class Item(BaseModel):
-    name: str
-    price: float
-    in_stock: bool = True
+try:
+    from workers import asgi  # only available on Cloudflare
+    Default = asgi.entrypoint(app)
+except ImportError:
+    pass
 
 
-items: dict[int, Item] = {}
+class ApiError(Exception):
+    def __init__(self, status: int, code: str, message: str):
+        self.status, self.code, self.message = status, code, message
 
 
-@app.get("/")
-def root():
-    return {"message": "Hello, world"}
+@app.exception_handler(ApiError)
+async def handle_api_error(request: Request, exc: ApiError):
+    return JSONResponse(
+        status_code=exc.status,
+        content={"error": {"code": exc.code, "message": exc.message}},
+    )
+
+
+def sse(event: dict) -> str:
+    return f"data: {json.dumps(event)}\n\n"
 
 
 @app.get("/api/health")
@@ -22,6 +45,26 @@ def health():
     return {"status": "ok"}
 
 
-@app.get("/api/hello")
-def hello(name: str = "world"):
-    return {"message": f"Hello, {name} from Nova"}
+@app.post("/api/tutor")
+async def tutor(request: Request, body: TutorRequest):
+    settings = get_settings(request)
+    if not within_daily_cap(settings):
+        raise ApiError(429, "rate_limited", "The tutor has reached today's limit. Try again tomorrow.")
+
+    system_prompt = build_system_prompt(body)
+    messages = [m.model_dump() for m in body.messages[-8:]]
+
+    async def events():
+        try:
+            async for text in stream_with_fallback(settings, system_prompt, messages):
+                yield sse({"type": "token", "text": text})
+            yield sse({"type": "done"})
+        except Exception:
+            logger.exception("Tutor failed")
+            yield sse({"type": "error", "message": "The tutor is unavailable right now."})
+
+    return StreamingResponse(
+        events(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache"},
+    )

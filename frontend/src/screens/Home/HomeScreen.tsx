@@ -8,7 +8,7 @@
  *  - onSelectPlanet(id): called after the camera flies to the clicked planet -> show screen 2 (Moons)
  * If those props aren't passed, the screen runs on its own with demo progress so it can be built and tested alone.
  */
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { HomeScene } from './HomeScene'
 import { HOME_PLANETS, type PlanetId } from './planets'
@@ -72,18 +72,21 @@ export function HomeScreen(props: HomeScreenProps) {
     setEditingName(false)
   }
 
+  // fixed container for the planet labels (see HomeScene)
+  const labelRoot = useRef<HTMLDivElement>(null!)
+
   const shown = name || 'Guest'
   const inOrbit = captured.length
 
   return (
-    <div className="relative h-full overflow-hidden bg-void font-body text-ink">
+    <div ref={labelRoot} className="relative h-full overflow-hidden bg-void font-body text-ink">
       <Canvas className="absolute! inset-0" camera={{ fov: 42, near: 0.1, far: 4000, position: [0, 50, 110] }} dpr={[1, 1.5]}
         gl={{ antialias: false, powerPreference: 'high-performance' }}
         onCreated={({ gl }) => {
           // if the graphics driver drops the WebGL context, ask the browser to restore it instead of staying black
           gl.domElement.addEventListener('webglcontextlost', (e) => e.preventDefault())
         }}>
-        <HomeScene completedMoons={completedMoons} captured={captured} justCaptured={justCaptured} focusId={focusId} onPlanetClick={selectPlanet} />
+        <HomeScene completedMoons={completedMoons} captured={captured} justCaptured={justCaptured} focusId={focusId} onPlanetClick={selectPlanet} labelRoot={labelRoot} />
       </Canvas>
 
       {/* user chip (top-left, as in the whiteboard sketch) */}
