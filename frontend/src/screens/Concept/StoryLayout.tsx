@@ -6,7 +6,6 @@
  * Each lesson supplies its own scene, captions, "try it" controls and Algo comments.
  */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import ReactMarkdown from 'react-markdown'
 import AlgoChat from './AlgoChat'
 import type { Moon } from './moonApi'
 
@@ -16,8 +15,6 @@ export type LessonProps = {
   onBack?: () => void
   onComplete?: (moonId: string) => void
   onOpenMoon?: (moonId: string) => void
-  completed?: boolean
-  completedMoons?: string[]
 }
 
 type StoryLayoutProps = LessonProps & {
@@ -34,7 +31,7 @@ type StoryLayoutProps = LessonProps & {
 }
 
 export default function StoryLayout({
-  planetId, moon, onBack, onComplete, onOpenMoon, completed, completedMoons, renderStage, caption, renderExtra, onStepChange, algoSays,
+  planetId, moon, onBack, onComplete, onOpenMoon, renderStage, caption, renderExtra, onStepChange, algoSays,
 }: StoryLayoutProps) {
   const [active, setActive] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -69,19 +66,12 @@ export default function StoryLayout({
   const say = algoSays?.(active) ?? "Scroll down and I'll walk you through it. Ask me anything on the way!"
   const reaction = useMemo(() => ({ text: say, key: active }), [say, active])
 
-  function goTo(index: number) {
-    const section = scrollRef.current?.querySelector<HTMLElement>(`[data-k="${index}"]`)
-    section?.scrollIntoView({ behavior: 'instant', block: 'start' })
-    setActive(index)
-    onStepRef.current?.(index)
-  }
-
   return (
     <div className="flex h-full flex-col bg-void text-ink">
       {/* Top bar */}
       <header className="flex items-center gap-5 border-b border-white/10 px-5 py-4">
         {onBack && (
-          <button autoFocus onClick={onBack} className="rounded-xl border border-white/15 px-4 py-2 font-bold cursor-pointer hover:border-white/40">
+          <button onClick={onBack} className="rounded-xl border border-white/15 px-4 py-2 font-bold cursor-pointer hover:border-white/40">
             ← Moons
           </button>
         )}
@@ -90,18 +80,11 @@ export default function StoryLayout({
             {planetId} · Moon {moon.order}
           </p>
           <h1 className="truncate font-display text-2xl font-semibold tracking-wide">{moon.title}</h1>
-          {completed && <p className="text-sm text-mint">✓ Completed</p>}
         </div>
       </header>
       <div className="h-1 bg-white/5 lg:hidden">
         <div className="h-full bg-mint transition-all duration-300" style={{ width: `${progress}%` }} />
       </div>
-      <nav aria-label="Lesson parts" className="flex flex-wrap items-center gap-3 border-b border-white/10 px-5 py-2 text-sm">
-        <button disabled={active === 0} onClick={() => goTo(active - 1)} className="rounded-lg border border-white/20 px-3 py-1.5 disabled:opacity-40">← Previous</button>
-        <span className="text-muted">{active < steps.length ? `Part ${active + 1} of ${steps.length}` : 'Checkpoint'}</span>
-        <button disabled={active === steps.length} onClick={() => goTo(active + 1)} className="rounded-lg border border-white/20 px-3 py-1.5 disabled:opacity-40">{active === steps.length - 1 ? 'Try checkpoint →' : 'Next →'}</button>
-        <button onClick={() => goTo(steps.length)} className="ml-auto rounded-lg border border-mint/30 px-3 py-1.5 text-mint">Go to checkpoint</button>
-      </nav>
 
       <div className="flex min-h-0 flex-1">
         {/* Story + scene (this part scrolls) */}
@@ -138,14 +121,14 @@ export default function StoryLayout({
 
       </div>
 
-      <AlgoChat planetId={planetId} moonId={moon.id} suggested={moon.suggested} completed={completedMoons} onMoonLink={openMoon} reaction={reaction} />
+      <AlgoChat planetId={planetId} moonId={moon.id} suggested={moon.suggested} onMoonLink={openMoon} reaction={reaction} />
     </div>
   )
 }
 
 function Section({ k, active, label, title, children }: { k: number; active: boolean; label: string; title: string; children: ReactNode }) {
   return (
-    <section data-k={k} className={`scroll-mt-[260px] py-6 transition-opacity duration-500 lg:min-h-[72vh] lg:scroll-mt-0 ${active ? 'opacity-100' : 'lg:opacity-35'}`}>
+    <section data-k={k} className={`py-6 transition-opacity duration-500 lg:min-h-[72vh] ${active ? 'opacity-100' : 'lg:opacity-35'}`}>
       <p className="mb-3 font-mono text-xs uppercase tracking-[0.2em] text-mint">{label}</p>
       <h2 className="mb-4 font-display text-[22px] font-semibold leading-snug tracking-wide">{title}</h2>
       <div className="space-y-4 text-[17px] leading-relaxed text-ink/90">{children}</div>
@@ -170,10 +153,10 @@ function QuickCheck({ check, onPass }: { check: Moon['check']; onPass: () => voi
           )
         })}
       </div>
-      {picked && !correct && <p role="status" className="mt-3 text-[15px] text-coral">Not quite. Look back at the scene, or ask Algo, then try again.</p>}
+      {picked && !correct && <p className="mt-3 text-[15px] text-coral">Not quite. Look back at the scene, or ask Algo, then try again.</p>}
       {correct && (
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <p role="status" className="text-[15px] text-mint">Correct!</p>
+          <p className="text-[15px] text-mint">Correct!</p>
           <button onClick={onPass} className="rounded-xl bg-mint px-5 py-2.5 font-bold text-void cursor-pointer">Complete moon</button>
         </div>
       )}
@@ -181,14 +164,28 @@ function QuickCheck({ check, onPass }: { check: Moon['check']; onPass: () => voi
   )
 }
 
-/** Markdown code blocks and internal lesson links use the same API-authored text. */
+/** Lesson text: blank lines become paragraphs, **bold** works, [[moon-id]] becomes a link button. */
 function LessonText({ text, onOpenMoon }: { text: string; onOpenMoon: (id: string) => void }) {
-  const markdown = text.replace(/\[\[([a-z0-9-]+)\]\]/g, (_, id: string) => `[${id.replaceAll('-', ' ')}](#moon-${id})`)
-  return <div className="space-y-4 [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_pre]:rounded-xl [&_pre]:border [&_pre]:border-white/15 [&_pre]:bg-black/30 [&_pre]:p-4 [&_pre]:text-sm [&_code]:font-mono [&_ul]:list-inside [&_ul]:list-disc">
-    <ReactMarkdown components={{ a: ({ href, children }) => href?.startsWith('#moon-')
-      ? <button onClick={() => onOpenMoon(href.slice(6))} className="mx-0.5 rounded-full border border-gold/50 px-2 text-[15px] text-gold hover:bg-gold/10">🌙 {children}</button>
-      : <a href={href} className="text-sky underline">{children}</a> }}>{markdown}</ReactMarkdown>
-  </div>
+  return (
+    <>
+      {text.split(/\n\s*\n/).map((para, p) => (
+        <p key={p}>
+          {para.split(/(\[\[[a-z0-9-]+\]\]|\*\*[^*]+\*\*)/g).map((part, i): ReactNode => {
+            const link = part.match(/^\[\[([a-z0-9-]+)\]\]$/)
+            if (link) {
+              return (
+                <button key={i} onClick={() => onOpenMoon(link[1])} className="mx-0.5 rounded-full border border-gold/50 px-2 text-[15px] text-gold cursor-pointer hover:bg-gold/10">
+                  🌙 {link[1].replace(/-/g, ' ')}
+                </button>
+              )
+            }
+            if (part.startsWith('**')) return <b key={i} className="text-ink">{part.slice(2, -2)}</b>
+            return part
+          })}
+        </p>
+      ))}
+    </>
+  )
 }
 
 /** Inline "try it" box inside the story, like the prototype. */

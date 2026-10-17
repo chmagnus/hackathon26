@@ -6,7 +6,7 @@
  * Plug-in points for the rest of the app:
  *  - completedMoons / captured / justCaptured: progress from the shared state (whoever owns it)
  *  - onSelectPlanet(id): called once the camera has arrived at the clicked planet (the Moon overlay shows from there).
- *    Only planets whose API lessons have loaded can be entered.
+ *    Only live planets fly in; "coming soon" ones just show a toast.
  * If those props aren't passed, the screen runs on its own with demo progress so it can be built and tested alone.
  *
  * The 3D scene is drawn in the shared Universe canvas (src/galaxy), which must be mounted alongside this screen;
@@ -17,16 +17,14 @@ import { universeLabelRoot } from '../../galaxy/labelRoot'
 import { InUniverse } from '../../galaxy/tunnel'
 import { useView } from '../../galaxy/view'
 import { HomeScene } from './HomeScene'
-import { HOME_PLANETS, type HomePlanet, type PlanetId } from './planets'
+import { HOME_PLANETS, type PlanetId } from './planets'
 import { playPlanetClick } from '../../shared/sounds'
 
 export interface HomeScreenProps {
-  planets?: HomePlanet[]
   completedMoons?: Partial<Record<PlanetId, number>>
   captured?: PlanetId[]
   justCaptured?: PlanetId | null
   onSelectPlanet?: (id: PlanetId) => void
-  onResetProgress?: () => void
 }
 
 const NAME_KEY = 'nova-name'
@@ -38,7 +36,6 @@ const writeName = (v: string) => {
 }
 
 export function HomeScreen(props: HomeScreenProps) {
-  const planets = props.planets ?? HOME_PLANETS
   // demo progress, used only when the parent doesn't pass real progress
   const [demoCaptured, setDemoCaptured] = useState<PlanetId[]>([])
   const [demoJust, setDemoJust] = useState<PlanetId | null>(null)
@@ -66,9 +63,9 @@ export function HomeScreen(props: HomeScreenProps) {
   function selectPlanet(id: PlanetId) {
     if (focusId) return
     playPlanetClick()
-    const planet = planets.find((p) => p.id === id)!
+    const planet = HOME_PLANETS.find((p) => p.id === id)!
     if (!planet.live) {
-      showToast(`${planet.name}'s lessons are still loading. Check the content status below.`)
+      showToast(`${planet.name} is coming soon.`)
       return
     }
     setView({ mode: 'planet', id })
@@ -103,7 +100,7 @@ export function HomeScreen(props: HomeScreenProps) {
     // Fades out as the camera closes in on a planet (the Moon overlay shows there instead).
     <div className={`pointer-events-none absolute inset-0 overflow-hidden font-body text-ink transition-[opacity,visibility] duration-300 ${zoomStarted ? 'invisible opacity-0' : ''}`}>
       <InUniverse>
-        <HomeScene planets={planets} completedMoons={completedMoons} captured={captured} justCaptured={justCaptured} labelsHidden={labelsHidden} onPlanetClick={selectPlanet} labelRoot={universeLabelRoot} />
+        <HomeScene completedMoons={completedMoons} captured={captured} justCaptured={justCaptured} labelsHidden={labelsHidden} onPlanetClick={selectPlanet} labelRoot={universeLabelRoot} />
       </InUniverse>
 
       {/* user chip (top-left, as in the whiteboard sketch) */}
@@ -130,11 +127,6 @@ export function HomeScreen(props: HomeScreenProps) {
           Click a planet to explore its moons. Finish every moon and the planet joins your orbit.
         </span>
       </div>
-
-      <nav aria-label="Explore algorithms" className="pointer-events-auto absolute bottom-20 left-1/2 flex max-w-[calc(100%-32px)] -translate-x-1/2 flex-wrap justify-center gap-2">
-        {planets.map((planet) => <button key={planet.id} disabled={!planet.live} onClick={() => selectPlanet(planet.id)} className="rounded-xl border border-white/20 bg-glass px-3 py-2 text-sm font-bold hover:border-mint/50 disabled:opacity-40">Explore {planet.name}</button>)}
-        {props.onResetProgress && <button onClick={props.onResetProgress} className="rounded-xl border border-white/20 bg-glass px-3 py-2 text-sm">Reset progress</button>}
-      </nav>
 
       {/* dev-only helper so the capture animation can be tested before the other screens exist */}
       {import.meta.env.DEV && !props.captured && (

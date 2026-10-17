@@ -15,7 +15,6 @@ type AlgoChatProps = {
   moonId: string // e.g. "ledgers"
   /** Question chips sent to the AI tutor */
   suggested?: string[]
-  completed?: string[]
   /** Question chips with pre-written answers (instant, no AI needed) */
   quickAnswers?: [question: string, answer: string][]
   /** Short comment for Algo to pop up. Change `key` to show a new one. */
@@ -25,7 +24,7 @@ type AlgoChatProps = {
 
 const FALLBACK = "Hmm, my signal's weak right now. Try one of the suggested questions, or ask me again in a moment!"
 
-export default function AlgoChat({ planetId, moonId, suggested = [], completed = [], quickAnswers = [], reaction, onMoonLink }: AlgoChatProps) {
+export default function AlgoChat({ planetId, moonId, suggested = [], quickAnswers = [], reaction, onMoonLink }: AlgoChatProps) {
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
@@ -85,7 +84,7 @@ export default function AlgoChat({ planetId, moonId, suggested = [], completed =
 
     try {
       if (preset) await typeOut(preset, append, abort.signal)
-      else await streamTutor({ system: planetId, moon_id: moonId, messages: history, completed }, append, abort.signal)
+      else await streamTutor({ system: planetId, moon_id: moonId, messages: history }, append, abort.signal)
     } catch {
       if (abort.signal.aborted) return
       setMessages((prev) => [...prev.slice(0, -1), { role: 'assistant', content: FALLBACK }])
@@ -130,7 +129,7 @@ export default function AlgoChat({ planetId, moonId, suggested = [], completed =
       {open && (
         <section
           aria-label="Chat with Algo"
-          className="fixed right-5 bottom-[118px] z-40 flex h-[min(540px,70vh)] w-[min(380px,calc(100vw-40px))] flex-col overflow-hidden rounded-3xl rounded-br-md border border-white/10 bg-[#070b18] shadow-2xl"
+          className="fixed right-5 bottom-[118px] z-40 flex h-[min(540px,70vh)] w-[380px] flex-col overflow-hidden rounded-3xl rounded-br-md border border-white/10 bg-[#070b18] shadow-2xl"
           style={{ animation: 'algo-pop .25s ease-out' }}
         >
           <header className="flex items-center gap-3 border-b border-white/10 px-5 py-3.5">
