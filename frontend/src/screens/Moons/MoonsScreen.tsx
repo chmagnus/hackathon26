@@ -14,14 +14,17 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { ChapterPanel } from './ChapterPanel'
 import { chapterState, type ChapterProgress } from './chapters'
-import { CAMERA_DISTANCE, CAMERA_ELEVATION } from './layout'
+import { CAMERA_DISTANCE, CAMERA_ELEVATION, INTRO_DISTANCE, REDUCED_MOTION } from './layout'
 import { MoonsHud } from './MoonsHud'
 import { MoonsScene } from './MoonsScene'
 import { MOCK_PLANET } from './mockPlanet'
 import { MOCK_PROGRESS } from './mockProgress'
 import type { Planet } from './types'
 
-const CAMERA_START: [number, number, number] = [0, Math.sin(CAMERA_ELEVATION) * CAMERA_DISTANCE, Math.cos(CAMERA_ELEVATION) * CAMERA_DISTANCE]
+// starts close to the planet and eases back to the default view (MoonsScene's camera rig), so the warp from Home
+// feels like one continuous zoom. With reduced motion it simply starts at the default view.
+const START_DISTANCE = REDUCED_MOTION ? CAMERA_DISTANCE : INTRO_DISTANCE
+const CAMERA_START: [number, number, number] = [0, Math.sin(CAMERA_ELEVATION) * START_DISTANCE, Math.cos(CAMERA_ELEVATION) * START_DISTANCE]
 const TOAST_MS = 4000
 
 export interface MoonsScreenProps {
@@ -30,11 +33,13 @@ export interface MoonsScreenProps {
   onBack?: () => void
   onSelectChapter?: (orbitNumber: number) => void
   onSelectMoon?: (moonId: string) => void
+  /** called once the 3D scene has drawn its first frame (used to end the screen-change transition) */
+  onReady?: () => void
 }
 
 const logMoon = (moonId: string) => console.log('select moon', moonId)
 
-export function MoonsScreen({ planet = MOCK_PLANET, progress = MOCK_PROGRESS, onBack, onSelectChapter, onSelectMoon = logMoon }: MoonsScreenProps) {
+export function MoonsScreen({ planet = MOCK_PLANET, progress = MOCK_PROGRESS, onBack, onSelectChapter, onSelectMoon = logMoon, onReady }: MoonsScreenProps) {
   const states = planet.orbits.map((orbit) => chapterState(orbit, planet.orbits, progress))
 
   // single source of truth: which chapter the camera is on (null = overview)
@@ -98,7 +103,7 @@ export function MoonsScreen({ planet = MOCK_PLANET, progress = MOCK_PROGRESS, on
           // if the graphics driver drops the WebGL context, ask the browser to restore it instead of staying black
           gl.domElement.addEventListener('webglcontextlost', (e) => e.preventDefault())
         }}>
-        <MoonsScene planet={planet} states={states} focused={focused} onSelectChapter={selectChapter} onArrive={handleArrive} labelRoot={labelRoot} />
+        <MoonsScene planet={planet} states={states} focused={focused} onSelectChapter={selectChapter} onArrive={handleArrive} labelRoot={labelRoot} onReady={onReady} />
       </Canvas>
       <MoonsHud planet={planet} states={states} onBack={onBack} hideHint={focused !== null} />
 
