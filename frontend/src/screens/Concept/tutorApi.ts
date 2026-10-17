@@ -23,8 +23,14 @@ export async function streamTutor(
   onToken: (text: string) => void,
   signal?: AbortSignal,
 ): Promise<void> {
-  // The contract says only send the last 6–8 turns
-  const body = { ...req, messages: req.messages.slice(-8) }
+  // The backend rejects empty messages (e.g. an answer cut off when the chat was closed)
+  // and messages over 2000 characters. The contract says only send the last 6–8 turns.
+  const messages = req.messages
+    .filter((m) => m.content.trim() !== '')
+    .map((m) => ({ ...m, content: m.content.slice(0, 2000) }))
+    .slice(-8)
+  while (messages[0]?.role === 'assistant') messages.shift() // start with the learner's question
+  const body = { ...req, messages }
 
   if (USE_MOCK) return mockStream(body, onToken, signal)
 
@@ -94,3 +100,13 @@ async function mockStream(req: TutorRequest, onToken: (t: string) => void, signa
 }
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+/** Types out a pre-written answer word by word (used for the suggested-question chips). */
+export async function typeOut(text: string, onToken: (t: string) => void, signal?: AbortSignal) {
+  await wait(250)
+  for (const word of text.split(' ')) {
+    if (signal?.aborted) return
+    onToken(word + ' ')
+    await wait(18 + Math.random() * 25)
+  }
+}
