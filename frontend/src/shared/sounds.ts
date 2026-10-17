@@ -1,6 +1,6 @@
 // Sound effects for nova, using audio files you choose.
 // Put your files in frontend/public/sounds/ with these names:
-//   planet.mp3        - clicking a planet
+//   whoosh.mp3        - clicking a planet
 //   algo-click.mp3    - clicking Algo
 //   algo.mp3          - Algo's voice while the AI is responding (loops)
 //   travel.mp3        - moving between planets
@@ -10,7 +10,7 @@
 //   <button onClick={() => { playPlanetClick(); /* your existing code */ }}>
  
 const files = {
-  planet: '/sounds/planet.mp3',
+  planet: '/sounds/whoosh.mp3',
   algoClick: '/sounds/algo-click.mp3',
   algo: '/sounds/algo.m4a',
   travel: '/sounds/travel.mp3',
