@@ -13,9 +13,11 @@ export interface MoonsHudProps {
   /** one state per orbit, in the same order as planet.orbits */
   states: ChapterState[]
   onBack?: () => void
+  /** hide the bottom hint (e.g. while a chapter is focused) */
+  hideHint?: boolean
 }
 
-export function MoonsHud({ planet, states, onBack }: MoonsHudProps) {
+export function MoonsHud({ planet, states, onBack, hideHint }: MoonsHudProps) {
   const currentIdx = states.indexOf('current')
   const current = currentIdx >= 0 ? planet.orbits[currentIdx] : null
   const done = states.filter((s) => s === 'completed').length
@@ -44,7 +46,7 @@ export function MoonsHud({ planet, states, onBack }: MoonsHudProps) {
         </div>
       </div>
 
-      {hint && (
+      {hint && !hideHint && (
         <div className="absolute bottom-3.5 left-1/2 w-[min(720px,calc(100%-32px))] -translate-x-1/2 text-center">
           <span className={`${EDGE} inline-block rounded-full bg-glass px-4 py-2 text-sm text-[#cdd5ea] backdrop-blur`}>{hint}</span>
         </div>

@@ -16,6 +16,21 @@ export const MOON_ORBIT_SPEED = 0.035
 /** Camera: distance from the planet and height angle (radians) on a wide screen. */
 export const CAMERA_DISTANCE = 38
 export const CAMERA_ELEVATION = 0.32
+/** How close the camera ends up to a focused moon (prototype: 7). */
+export const FOCUS_DISTANCE = 7
+
+/** Default camera position: further back on tall/narrow screens so the whole ring fits (prototype's desiredView). */
+export function defaultCameraPosition(aspect: number): [number, number, number] {
+  const d = CAMERA_DISTANCE * Math.max(1, Math.pow(1.45 / aspect, 0.85))
+  return [0, Math.sin(CAMERA_ELEVATION) * d, Math.cos(CAMERA_ELEVATION) * d]
+}
+
+/** Camera position for a focused moon at `target` (world space): outside the ring, slightly above, so the planet sits behind the moon. */
+export function focusCameraPosition(target: { x: number; y: number; z: number }): [number, number, number] {
+  const len = Math.hypot(target.x, target.z) || 1
+  const out = (FOCUS_DISTANCE * Math.cos(CAMERA_ELEVATION)) / len
+  return [target.x + target.x * out, target.y + FOCUS_DISTANCE * Math.sin(CAMERA_ELEVATION), target.z + target.z * out]
+}
 
 const reducedMotion = typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
