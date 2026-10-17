@@ -1,18 +1,10 @@
 /**
- * Canvas-drawn textures and colour helpers, ported from the prototype (algoverse2.html).
+ * Canvas-drawn textures for the Planet view. Glows reuse Home's radialTexture; the crater surface is ported from the prototype.
  */
 import * as THREE from 'three'
+import { radialTexture } from '../Home/textures'
 
-/**
- * The prototype ran on three r128, which had no colour management: hex colours went to the GPU unchanged.
- * Marking them as already linear stops newer three converting them, so they look the same as before.
- * Only correct together with the canvas's `linear` + `flat` settings (see MoonsScreen).
- */
-export function rawColor(css: string) {
-  return new THREE.Color().setStyle(css, THREE.LinearSRGBColorSpace)
-}
-
-/** Seeded random numbers, so the starfield and craters look the same on every visit. */
+/** Seeded random numbers, so the craters look the same on every visit. */
 export function rng(seed: number) {
   return () => {
     seed = (seed * 16807) % 2147483647
@@ -20,22 +12,10 @@ export function rng(seed: number) {
   }
 }
 
-/** A soft round glow drawn on a canvas. */
-export function radialTex(stops: [number, string][]) {
-  const c = document.createElement('canvas')
-  c.width = c.height = 128
-  const x = c.getContext('2d')!
-  const g = x.createRadialGradient(64, 64, 0, 64, 64, 64)
-  stops.forEach(([o, s]) => g.addColorStop(o, s))
-  x.fillStyle = g
-  x.fillRect(0, 0, 128, 128)
-  return new THREE.CanvasTexture(c)
-}
-
 /** White glow, tinted by the sprite colour (planet and moon halos). */
-export const glowTex = () => radialTex([[0, 'rgba(255,255,255,1)'], [0.2, 'rgba(255,255,255,.6)'], [0.5, 'rgba(255,255,255,.12)'], [1, 'rgba(255,255,255,0)']])
-/** Warm star glow (the far sun). */
-export const warmTex = () => radialTex([[0, 'rgba(255,250,235,1)'], [0.15, 'rgba(255,220,150,.85)'], [0.4, 'rgba(255,160,70,.25)'], [1, 'rgba(255,120,40,0)']])
+export const glowTex = () => radialTexture([[0, 'rgba(255,255,255,1)'], [0.2, 'rgba(255,255,255,.6)'], [0.5, 'rgba(255,255,255,.12)'], [1, 'rgba(255,255,255,0)']])
+/** Warm star glow (the far sun). Same stops as Home's star corona. */
+export const warmTex = () => radialTexture([[0, 'rgba(255,250,235,1)'], [0.15, 'rgba(255,220,150,.85)'], [0.4, 'rgba(255,160,70,.25)'], [1, 'rgba(255,120,40,0)']])
 
 /** Grey cratered moon surface. */
 export function craterTex(seed: number) {
@@ -62,5 +42,8 @@ export function craterTex(seed: number) {
     x.arc(cx - rad * 0.12, cy - rad * 0.12, rad, 3.6, 5.6)
     x.stroke()
   }
-  return new THREE.CanvasTexture(c)
+  const tex = new THREE.CanvasTexture(c)
+  // a colour image: decode it from sRGB like Home's ring texture
+  tex.colorSpace = THREE.SRGBColorSpace
+  return tex
 }

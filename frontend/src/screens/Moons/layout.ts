@@ -40,26 +40,10 @@ export function chapterAngle(index: number, count: number, time: number): number
   return -Math.PI / 2 + (index / count) * Math.PI * 2 + spin
 }
 
-/** Tamper drift: how far a broken moon moves out, how much it slows, and how much its path tilts off the ring. */
-export const DRIFT_DISTANCE = 5
-export const DRIFT_SLOWDOWN = 0.7
-export const DRIFT_TILT = 0.15
-/** Seconds: crack shake on the first broken moon, delay between drifting moons, and one moon's drift out (or back). */
-export const CRACK_SECONDS = 0.4
-export const DRIFT_STAGGER = 0.35
-export const DRIFT_SECONDS = 1.6
-/** Seconds for one full lap of the ring. */
-export const ORBIT_LAP = (Math.PI * 2) / MOON_ORBIT_SPEED
-
-/**
- * Position of chapter `index` in the ring's own (untilted) space, with a gentle bob. `time` is in seconds.
- * `drift` (0..1, eased) pushes a broken moon off the ring: further out and on a slightly tilted path.
- */
-export function chapterPosition(index: number, count: number, time: number, drift = 0): [number, number, number] {
+/** Position of chapter `index` in the ring's own (untilted) space, with a gentle bob. `time` is in seconds. */
+export function chapterPosition(index: number, count: number, time: number): [number, number, number] {
   const a = chapterAngle(index, count, time)
-  const r = MOON_ORBIT_RADIUS + DRIFT_DISTANCE * drift
-  const y = Math.sin(time * 0.7 + index) * 0.25 + r * Math.sin(DRIFT_TILT * drift) * Math.sin(a - index)
-  return [Math.cos(a) * r, y, Math.sin(a) * r]
+  return [Math.cos(a) * MOON_ORBIT_RADIUS, Math.sin(time * 0.7 + index) * 0.25, Math.sin(a) * MOON_ORBIT_RADIUS]
 }
 
 /** Angle halfway between chapter `index` and the next one: where the arrow between them sits. */

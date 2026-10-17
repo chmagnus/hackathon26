@@ -4,7 +4,8 @@
  * uType: 0 = ocean world, 1 = gas giant, 2 = ice giant, 3 = rocky desert.
  */
 import * as THREE from 'three'
-import { rawColor } from './textures'
+
+const color = (css: string) => new THREE.Color(css)
 
 export const NOISE_GLSL = `
 vec3 mod289(vec3 x){return x-floor(x*(1.0/289.0))*289.0;}
@@ -109,8 +110,8 @@ export function planetMaterial(shade: PlanetShade, lightPos: THREE.Vector3) {
     fragmentShader: PFRAG,
     uniforms: {
       uType: { value: shade.type }, uT: { value: 0 }, uSeed: { value: shade.seed }, uLight: { value: lightPos.clone() },
-      uA: { value: rawColor(shade.A) }, uB: { value: rawColor(shade.B) }, uC: { value: rawColor(shade.C) }, uD: { value: rawColor(shade.D) },
-      uCity: { value: rawColor(shade.city) }, uAtm: { value: rawColor(shade.atm) },
+      uA: { value: color(shade.A) }, uB: { value: color(shade.B) }, uC: { value: color(shade.C) }, uD: { value: color(shade.D) },
+      uCity: { value: color(shade.city) }, uAtm: { value: color(shade.atm) },
     },
   })
 }
@@ -123,6 +124,6 @@ export function atmosphereMaterial(shade: PlanetShade, lightPos: THREE.Vector3) 
     transparent: true,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
-    uniforms: { uLight: { value: lightPos.clone() }, uAtm: { value: rawColor(shade.atm) } },
+    uniforms: { uLight: { value: lightPos.clone() }, uAtm: { value: color(shade.atm) } },
   })
 }
