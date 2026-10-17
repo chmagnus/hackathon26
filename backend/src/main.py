@@ -1,7 +1,9 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from .routes.systems import router as systems_router
 
 app = FastAPI(title="Nova API")
+app.include_router(systems_router)
 
 class Item(BaseModel):
     name: str
