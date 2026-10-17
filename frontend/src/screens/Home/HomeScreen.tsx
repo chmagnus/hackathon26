@@ -8,7 +8,7 @@
  *  - onSelectPlanet(id): called after the camera flies to the clicked planet -> show screen 2 (Moons)
  * If those props aren't passed, the screen runs on its own with demo progress so it can be built and tested alone.
  */
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { HomeScene } from './HomeScene'
 import { HOME_PLANETS, type PlanetId } from './planets'
@@ -20,7 +20,7 @@ export interface HomeScreenProps {
   onSelectPlanet?: (id: PlanetId) => void
 }
 
-const NAME_KEY = 'algoverse-name'
+const NAME_KEY = 'nova-name'
 const readName = (): string | null => {
   try { return localStorage.getItem(NAME_KEY) } catch { return null }
 }
@@ -70,18 +70,21 @@ export function HomeScreen(props: HomeScreenProps) {
     setEditingName(false)
   }
 
+  // fixed container for the planet labels (see HomeScene)
+  const labelRoot = useRef<HTMLDivElement>(null!)
+
   const shown = name || 'Guest'
   const inOrbit = captured.length
 
   return (
-    <div className="relative h-full overflow-hidden bg-void font-body text-ink">
+    <div ref={labelRoot} className="relative h-full overflow-hidden bg-void font-body text-ink">
       <Canvas className="absolute! inset-0" camera={{ fov: 42, near: 0.1, far: 4000, position: [0, 50, 110] }} dpr={[1, 1.5]}
         gl={{ antialias: false, powerPreference: 'high-performance' }}
         onCreated={({ gl }) => {
           // if the graphics driver drops the WebGL context, ask the browser to restore it instead of staying black
           gl.domElement.addEventListener('webglcontextlost', (e) => e.preventDefault())
         }}>
-        <HomeScene completedMoons={completedMoons} captured={captured} justCaptured={justCaptured} focusId={focusId} onPlanetClick={selectPlanet} />
+        <HomeScene completedMoons={completedMoons} captured={captured} justCaptured={justCaptured} focusId={focusId} onPlanetClick={selectPlanet} labelRoot={labelRoot} />
       </Canvas>
 
       {/* user chip (top-left, as in the whiteboard sketch) */}
@@ -99,7 +102,7 @@ export function HomeScreen(props: HomeScreenProps) {
       </div>
 
       <div className="absolute right-4 top-4 rounded-2xl border border-white/15 bg-glass px-4 py-2.5 font-display text-lg font-extrabold tracking-[.08em] backdrop-blur max-sm:hidden">
-        ALGOVERSE
+        NOVA
       </div>
 
       <div className="pointer-events-none absolute bottom-4 left-1/2 w-[min(720px,calc(100%-32px))] -translate-x-1/2 text-center">
@@ -133,7 +136,7 @@ export function HomeScreen(props: HomeScreenProps) {
         <div className="absolute inset-0 z-20 grid place-items-center bg-void/60 p-6">
           <form onSubmit={saveName} className="flex w-full max-w-[440px] flex-col gap-3.5 rounded-3xl border border-white/15 bg-glass p-7 backdrop-blur-lg">
             <span className="font-mono text-[11.5px] uppercase tracking-[.16em] text-mint">GUTS 2027 · Learn algorithms in 3D</span>
-            <h1 className="font-display text-4xl font-extrabold leading-none tracking-wider">Algoverse</h1>
+            <h1 className="font-display text-4xl font-extrabold leading-none tracking-wider">Nova</h1>
             <p className="text-[#cdd5ea]">Every algorithm is a planet. Every idea is a moon. Finish all of a planet's moons and it joins your orbit.</p>
             <label htmlFor="home-name" className="font-mono text-[11px] uppercase tracking-widest text-muted">What should we call you?</label>
             <input
