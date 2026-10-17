@@ -10,14 +10,12 @@ const TONE: Record<ChapterState, string> = {
   completed: `${EDGE} text-mint`,
   current: 'border-gold/50 text-gold',
   locked: `${EDGE} text-muted`,
-  broken: 'border-coral/50 text-coral',
 }
 
 const SUFFIX: Record<ChapterState, string> = {
   completed: ' · done',
   current: '',
   locked: ' · locked',
-  broken: ' · broken',
 }
 
 export function ChapterLabel({ number, title, state }: { number: number; title: string; state: ChapterState }) {

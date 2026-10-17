@@ -9,8 +9,6 @@
  *  - onBack: go back to the Universe (Home) screen.
  *  - onSelectChapter(orbitNumber): called once the camera has arrived at a chapter moon.
  *  - onSelectMoon(moonId): a concept was picked in the chapter panel -> open the Concept page.
- *  - brokenFrom: index (into planet.orbits) of the first chapter that fails verification (from /verify), or null.
- *    If it isn't passed, dev builds show TEMPORARY buttons to try the tamper animation.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
@@ -32,19 +30,12 @@ export interface MoonsScreenProps {
   onBack?: () => void
   onSelectChapter?: (orbitNumber: number) => void
   onSelectMoon?: (moonId: string) => void
-  brokenFrom?: number | null
 }
 
 const logMoon = (moonId: string) => console.log('select moon', moonId)
 
-export function MoonsScreen(props: MoonsScreenProps) {
-  const { planet = MOCK_PLANET, progress = MOCK_PROGRESS, onBack, onSelectChapter, onSelectMoon = logMoon } = props
+export function MoonsScreen({ planet = MOCK_PLANET, progress = MOCK_PROGRESS, onBack, onSelectChapter, onSelectMoon = logMoon }: MoonsScreenProps) {
   const states = planet.orbits.map((orbit) => chapterState(orbit, planet.orbits, progress))
-
-  // TEMPORARY: local tamper state for the dev buttons, used only when the parent doesn't pass brokenFrom
-  const [devBrokenFrom, setDevBrokenFrom] = useState<number | null>(null)
-  const brokenFrom = props.brokenFrom !== undefined ? props.brokenFrom : devBrokenFrom
-  const devTamper = import.meta.env.DEV && props.brokenFrom === undefined ? setDevBrokenFrom : undefined
 
   // single source of truth: which chapter the camera is on (null = overview)
   const [focused, setFocused] = useState<number | null>(null)
@@ -97,17 +88,16 @@ export function MoonsScreen(props: MoonsScreenProps) {
 
   return (
     <div className="relative h-full overflow-hidden bg-void font-body text-ink">
-      {/* `linear` + `flat`: no output colour conversion and no tone mapping, like the three r128 prototype.
-          Only affects this canvas; colours inside are made with rawColor() to match. */}
-      <Canvas className="absolute! inset-0" linear flat camera={{ fov: 42, near: 0.1, far: 4000, position: CAMERA_START }} dpr={[1, 2]}
-        gl={{ antialias: true }}
+      {/* same canvas settings as Home (antialiasing comes from the effect composer's multisampling) */}
+      <Canvas className="absolute! inset-0" camera={{ fov: 42, near: 0.1, far: 4000, position: CAMERA_START }} dpr={[1, 1.5]}
+        gl={{ antialias: false, powerPreference: 'high-performance' }}
         onCreated={({ gl }) => {
           // if the graphics driver drops the WebGL context, ask the browser to restore it instead of staying black
           gl.domElement.addEventListener('webglcontextlost', (e) => e.preventDefault())
         }}>
-        <MoonsScene planet={planet} states={states} brokenFrom={brokenFrom} focused={focused} onSelectChapter={selectChapter} onArrive={handleArrive} />
+        <MoonsScene planet={planet} states={states} focused={focused} onSelectChapter={selectChapter} onArrive={handleArrive} />
       </Canvas>
-      <MoonsHud planet={planet} states={states} onBack={onBack} hideHint={focused !== null} brokenFrom={brokenFrom} onDevTamper={devTamper} />
+      <MoonsHud planet={planet} states={states} onBack={onBack} hideHint={focused !== null} />
 
       {focusedOrbit && (
         <ChapterPanel orbit={focusedOrbit} completed={progress.completed} onSelectMoon={onSelectMoon} onClose={close} />
