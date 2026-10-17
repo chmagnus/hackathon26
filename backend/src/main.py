@@ -3,7 +3,6 @@ from pydantic import BaseModel
 
 app = FastAPI(title="Nova API")
 
-
 class Item(BaseModel):
     name: str
     price: float
