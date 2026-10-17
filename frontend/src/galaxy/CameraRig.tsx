@@ -5,6 +5,10 @@
  *  - planet mode + chapter: flies to MOON_VIEW_DISTANCE from that chapter's moon and follows it
  * Driven by useView(); marks `arrived` / `chapterArrived` once the camera gets there.
  * Also works out live.zoom every frame (and the zoomStarted / zoomedIn flags) for the fades.
+ *
+ * Flights are driven here, not by CameraControls' own transitions: each frame both the look-at target and the
+ * camera's offset around it move by the same eased progress, aimed at where the planet/moon is right now. That way
+ * the target glides to the planet (no snap) and the flight still lands on a moving target.
  */
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
@@ -15,6 +19,7 @@ import { chapterPositions, live, planetPositions, useView } from './view'
 
 /** Overview position on a wide screen (pulled back on tall/narrow ones). */
 const START = new THREE.Vector3(0, 38, 84)
+const ORIGIN = new THREE.Vector3(0, 0, 0)
 /** How far from the planet the camera ends up in planet mode. */
 const PLANET_VIEW_DISTANCE = 21
 /** How far from a focused moon, and how high above its ring (radians). */
@@ -26,8 +31,8 @@ const UNIVERSE_DISTANCE: [number, number] = [30, 260]
 // capped at 30 so zooming out by hand in planet mode keeps live.zoom near 1 (the moons stay out)
 const PLANET_DISTANCE: [number, number] = [10, 30]
 const MOON_DISTANCE: [number, number] = [3, 20]
-/** If the user zooms during a flight it may never hit the distance exactly; count it as arrived after this long. */
-const ARRIVE_TIMEOUT = 2.5
+/** Length of every flight (in, out, to a moon and back), in seconds. */
+const FLIGHT_SECONDS = 1.6
 
 /** live.zoom: 0 at ZOOM_FAR or further from the planet, 1 at ZOOM_NEAR or closer. */
 const ZOOM_FAR = 60
@@ -40,6 +45,7 @@ function smoothstep(edge0: number, edge1: number, x: number) {
   const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)))
   return t * t * (3 - 2 * t)
 }
+const easeInOutCubic = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - (-2 * x + 2) ** 3 / 2)
 
 /**
  * live.zoom from the camera's distance to the planet being visited. In universe mode it may only fall: it runs
@@ -56,47 +62,72 @@ function updateZoom(camera: THREE.Camera, planetId: PlanetId | null) {
   if (zoomStarted !== s.zoomStarted || zoomedIn !== s.zoomedIn) s.setZoomFlags({ zoomStarted, zoomedIn })
 }
 
+interface Flight {
+  elapsed: number
+  /** where the camera was looking from/at when the flight started */
+  fromTarget: THREE.Vector3
+  fromOffset: THREE.Spherical
+  /** where it should end up, worked out again every frame because planets and moons keep moving */
+  to: () => { target: THREE.Vector3; offset: THREE.Vector3 } | null
+  /** distance limits to apply once the flight is over (lifted during it so nothing gets clamped mid-air) */
+  limits: [number, number]
+  onDone?: () => void
+}
+
 export function CameraRig() {
   const controls = useRef<CameraControlsImpl>(null)
   const view = useView((s) => s.view)
   const chapter = useView((s) => s.chapter)
   const get = useThree((s) => s.get)
   const dragging = useRef(false)
-  const flightTime = useRef(0)
+  const flight = useRef<Flight | null>(null)
   /** the planet live.zoom is measured against: the one being visited, or the last one after flying back out */
   const zoomPlanet = useRef<PlanetId | null>(null)
-  const target = useMemo(() => new THREE.Vector3(), [])
+  const tmp = useMemo(() => ({
+    target: new THREE.Vector3(), position: new THREE.Vector3(), offset: new THREE.Vector3(), spherical: new THREE.Spherical(),
+  }), [])
 
   useEffect(() => {
     const c = controls.current
     if (!c) return
-    flightTime.current = 0
+    const fromTarget = c.getTarget(new THREE.Vector3(), false)
+    const fromPosition = c.getPosition(new THREE.Vector3(), false)
+    const fromOffset = new THREE.Spherical().setFromVector3(fromPosition.clone().sub(fromTarget))
+    const start = (to: Flight['to'], limits: [number, number], onDone?: () => void) => {
+      ;[c.minDistance, c.maxDistance] = [0, Infinity]
+      flight.current = { elapsed: 0, fromTarget, fromOffset, to, limits, onDone }
+    }
+
     if (view.mode === 'universe') {
-      ;[c.minDistance, c.maxDistance] = UNIVERSE_DISTANCE
       // pull the camera back on tall/narrow screens so every planet still fits
       const { size } = get()
-      const start = START.clone().multiplyScalar(Math.max(1, Math.pow(1.5 / (size.width / size.height), 0.72)))
-      c.setLookAt(start.x, start.y, start.z, 0, 0, 0, true)
+      const overview = START.clone().multiplyScalar(Math.max(1, Math.pow(1.5 / (size.width / size.height), 0.72)))
+      start(() => ({ target: ORIGIN, offset: overview }), UNIVERSE_DISTANCE)
       return
     }
-    const p = planetPositions[view.id]
-    if (!p) return
+
+    const id = view.id
+    const p0 = planetPositions[id]
+    if (!p0) return
     if (chapter === null) {
-      ;[c.minDistance, c.maxDistance] = PLANET_DISTANCE
       // keep the current viewing direction, so it's one straight flight in (or back out from a moon)
-      const end = c.camera.position.clone().sub(p).normalize().multiplyScalar(PLANET_VIEW_DISTANCE).add(p)
-      c.setLookAt(end.x, end.y, end.z, p.x, p.y, p.z, true)
+      const offset = fromPosition.clone().sub(p0).normalize().multiplyScalar(PLANET_VIEW_DISTANCE)
+      start(() => {
+        const p = planetPositions[id]
+        return p ? { target: p, offset } : null
+      }, PLANET_DISTANCE, useView.getState().setArrived)
     } else {
-      const m = chapterPositions[chapter]
-      if (!m) return
-      ;[c.minDistance, c.maxDistance] = MOON_DISTANCE
+      const m0 = chapterPositions[chapter]
+      if (!m0) return
       // outside the ring, slightly above, so the planet sits behind the moon
-      const out = m.clone().sub(p).setY(0)
-      if (out.lengthSq() < 1e-6) out.set(0, 0, 1)
-      out.normalize().multiplyScalar(MOON_VIEW_DISTANCE * Math.cos(MOON_VIEW_ELEVATION))
-      const end = m.clone().add(out)
-      end.y += MOON_VIEW_DISTANCE * Math.sin(MOON_VIEW_ELEVATION)
-      c.setLookAt(end.x, end.y, end.z, m.x, m.y, m.z, true)
+      const offset = m0.clone().sub(p0).setY(0)
+      if (offset.lengthSq() < 1e-6) offset.set(0, 0, 1)
+      offset.normalize().multiplyScalar(MOON_VIEW_DISTANCE * Math.cos(MOON_VIEW_ELEVATION))
+      offset.y = MOON_VIEW_DISTANCE * Math.sin(MOON_VIEW_ELEVATION)
+      start(() => {
+        const m = chapterPositions[chapter]
+        return m ? { target: m, offset } : null
+      }, MOON_DISTANCE, useView.getState().setChapterArrived)
     }
   }, [view, chapter, get])
 
@@ -107,28 +138,48 @@ export function CameraRig() {
     if (s.view.mode === 'planet') zoomPlanet.current = s.view.id
     updateZoom(c.camera, zoomPlanet.current)
 
+    // flying: target and offset both move by the same eased progress towards where the destination is now
+    const f = flight.current
+    if (f) {
+      const end = f.to()
+      if (!end) return
+      f.elapsed += dt
+      const k = Math.min(1, f.elapsed / FLIGHT_SECONDS)
+      const u = easeInOutCubic(k)
+      const { target, position, offset, spherical } = tmp
+      target.lerpVectors(f.fromTarget, end.target, u)
+      // swing around the moving target in spherical coordinates (shortest way round), like CameraControls did
+      spherical.setFromVector3(end.offset)
+      let dTheta = spherical.theta - f.fromOffset.theta
+      dTheta = Math.atan2(Math.sin(dTheta), Math.cos(dTheta))
+      spherical.set(
+        THREE.MathUtils.lerp(f.fromOffset.radius, spherical.radius, u),
+        THREE.MathUtils.lerp(f.fromOffset.phi, spherical.phi, u),
+        f.fromOffset.theta + dTheta * u,
+      )
+      position.copy(target).add(offset.setFromSpherical(spherical))
+      c.setLookAt(position.x, position.y, position.z, target.x, target.y, target.z, false)
+      if (k >= 1) {
+        flight.current = null
+        ;[c.minDistance, c.maxDistance] = f.limits
+        f.onDone?.()
+      }
+      return
+    }
+
     if (s.view.mode === 'universe') {
       if (!dragging.current) c.rotate(-AUTO_ROTATE * dt, 0, false)
       return
     }
 
-    // follow what we're looking at as it moves. Done by hand rather than moveTo(..., true),
-    // which would queue a new 'rest' listener every frame.
+    // arrived: keep the target on the drifting planet/moon. Done by hand rather than moveTo(..., true),
+    // which would queue a new 'rest' listener every frame. getTarget(..., false) reads the current target, not the end one.
     const follow = s.chapter !== null ? chapterPositions[s.chapter] : planetPositions[s.view.id]
     if (!follow) return
-    c.getTarget(target)
+    const { target } = tmp
+    c.getTarget(target, false)
     target.lerp(follow, Math.min(1, dt * 3))
     c.moveTo(target.x, target.y, target.z, false)
-
-    const done = s.chapter !== null ? s.chapterArrived : s.arrived
-    if (done) return
-    flightTime.current += dt
-    const distance = s.chapter !== null ? MOON_VIEW_DISTANCE : PLANET_VIEW_DISTANCE
-    const close = target.distanceTo(follow) < 0.3 && Math.abs(c.distance - distance) < 0.5
-    if (close || flightTime.current > ARRIVE_TIMEOUT) {
-      if (s.chapter !== null) s.setChapterArrived()
-      else s.setArrived()
-    }
   })
 
   const A = CameraControlsImpl.ACTION
