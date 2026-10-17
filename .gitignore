@@ -1,6 +1,24 @@
+# Node
 node_modules/
 dist/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Secrets
 .env
 .env.*
 !.env.example
+.dev.vars
+!.dev.vars.example
+
+# Cloudflare
+.wrangler/
+
+# OS and editors
 .DS_Store
+.idea/
