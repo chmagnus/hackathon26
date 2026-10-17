@@ -116,9 +116,10 @@ function OrbitLine() {
  * One chapter (orbit) as a crater moon with a halo and a name tag. userData.orbitNumber says which chapter a click hit.
  * The colour eases towards the state's colour; the current chapter pulses (as in the prototype's drawMoons).
  */
-function ChapterMoon({ index, count, orbitNumber, title, state, orbitClock, onGroup, onSelect }: {
+function ChapterMoon({ index, count, orbitNumber, title, state, orbitClock, labelRoot, onGroup, onSelect }: {
   index: number; count: number; orbitNumber: number; title: string; state: ChapterState
   orbitClock: OrbitClock
+  labelRoot: RefObject<HTMLDivElement>
   onGroup: (orbitNumber: number, group: THREE.Group | null) => void
   onSelect: (orbitNumber: number) => void
 }) {
@@ -184,7 +185,7 @@ function ChapterMoon({ index, count, orbitNumber, title, state, orbitClock, onGr
         <spriteMaterial ref={glowMat} map={glow} transparent depthWrite={false} blending={THREE.AdditiveBlending} />
       </sprite>
       {/* always mounted (unmounting drei <Html> mid-frame can crash); below the HUD (z-20) */}
-      <Html position={[0, 1.6, 0]} zIndexRange={[10, 0]} style={{ pointerEvents: 'none' }}>
+      <Html portal={labelRoot} position={[0, 1.6, 0]} zIndexRange={[10, 0]} style={{ pointerEvents: 'none' }}>
         <ChapterLabel number={orbitNumber} title={title} state={state} />
       </Html>
     </group>
@@ -265,9 +266,11 @@ export interface MoonsSceneProps {
   focused: number | null
   onSelectChapter: (orbitNumber: number) => void
   onArrive: (orbitNumber: number) => void
+  /** element the chapter labels are attached to. Without a fixed one, drei rebuilds the labels after the first frame and the first label comes out empty. */
+  labelRoot: RefObject<HTMLDivElement>
 }
 
-export function MoonsScene({ planet, states, focused, onSelectChapter, onArrive }: MoonsSceneProps) {
+export function MoonsScene({ planet, states, focused, onSelectChapter, onArrive, labelRoot }: MoonsSceneProps) {
   const count = planet.orbits.length
   const paused = focused !== null
   const orbitClock = useRef(0)
@@ -301,6 +304,7 @@ export function MoonsScene({ planet, states, focused, onSelectChapter, onArrive 
             title={orbit.title}
             state={states[i]}
             orbitClock={orbitClock}
+            labelRoot={labelRoot}
             onGroup={setGroup}
             onSelect={onSelectChapter}
           />

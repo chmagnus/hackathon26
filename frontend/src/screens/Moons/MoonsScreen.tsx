@@ -86,8 +86,11 @@ export function MoonsScreen({ planet = MOCK_PLANET, progress = MOCK_PROGRESS, on
     return () => window.removeEventListener('keydown', onKey)
   }, [focused, close])
 
+  // fixed container for the chapter labels (see MoonsScene)
+  const labelRoot = useRef<HTMLDivElement>(null!)
+
   return (
-    <div className="relative h-full overflow-hidden bg-void font-body text-ink">
+    <div ref={labelRoot} className="relative h-full overflow-hidden bg-void font-body text-ink">
       {/* same canvas settings as Home (antialiasing comes from the effect composer's multisampling) */}
       <Canvas className="absolute! inset-0" camera={{ fov: 42, near: 0.1, far: 4000, position: CAMERA_START }} dpr={[1, 1.5]}
         gl={{ antialias: false, powerPreference: 'high-performance' }}
@@ -95,7 +98,7 @@ export function MoonsScreen({ planet = MOCK_PLANET, progress = MOCK_PROGRESS, on
           // if the graphics driver drops the WebGL context, ask the browser to restore it instead of staying black
           gl.domElement.addEventListener('webglcontextlost', (e) => e.preventDefault())
         }}>
-        <MoonsScene planet={planet} states={states} focused={focused} onSelectChapter={selectChapter} onArrive={handleArrive} />
+        <MoonsScene planet={planet} states={states} focused={focused} onSelectChapter={selectChapter} onArrive={handleArrive} labelRoot={labelRoot} />
       </Canvas>
       <MoonsHud planet={planet} states={states} onBack={onBack} hideHint={focused !== null} />
 
