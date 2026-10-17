@@ -7,8 +7,10 @@
  */
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { OrbitControls } from '@react-three/drei'
+import { Html, OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
+import { ChapterLabel } from './ChapterLabel'
+import type { ChapterState } from './chapters'
 import {
   arrowAngle, CAMERA_DISTANCE, CAMERA_ELEVATION, chapterPosition, LIGHT_POSITION,
   MOON_ORBIT_RADIUS, MOON_ORBIT_TILT, PLANET_RADIUS,
@@ -23,9 +25,16 @@ const BACKGROUND = rawColor('#03040a')
 const PLANET_GLOW = rawColor('#6ff2c5')
 const AMBIENT = rawColor('#404a70')
 const SUN = rawColor('#fff0dd')
-const ARROW = rawColor('#7cc4ff')
-/** "locked" look; state colours come later */
-const DIM = rawColor('#3a4466')
+const SKY = rawColor('#7cc4ff')
+const MINT = rawColor('#6ff2c5')
+
+/** Moon colour for each chapter state (the prototype's mint / gold / dim, plus coral for tampered chapters). */
+const STATE_COLOR: Record<ChapterState, THREE.Color> = {
+  completed: MINT,
+  current: rawColor('#ffcf5a'),
+  locked: rawColor('#3a4466'),
+  broken: rawColor('#ff7b72'),
+}
 const MOON_RADIUS = 1.05
 const UP = new THREE.Vector3(0, 1, 0)
 
@@ -70,7 +79,7 @@ function OrbitLine() {
     })
     const l = new THREE.Line(
       new THREE.BufferGeometry().setFromPoints(pts),
-      new THREE.LineDashedMaterial({ color: ARROW, dashSize: 0.4, gapSize: 0.4, transparent: true, opacity: 0.3 }),
+      new THREE.LineDashedMaterial({ color: SKY, dashSize: 0.4, gapSize: 0.4, transparent: true, opacity: 0.3 }),
     )
     l.computeLineDistances()
     return l
@@ -79,34 +88,59 @@ function OrbitLine() {
   return <primitive object={line} />
 }
 
-/** One chapter (orbit) as a crater moon with a halo. userData.orbitNumber says which chapter a click hit. */
-function ChapterMoon({ index, count, orbitNumber }: { index: number; count: number; orbitNumber: number }) {
+/**
+ * One chapter (orbit) as a crater moon with a halo and a name tag. userData.orbitNumber says which chapter a click hit.
+ * The colour eases towards the state's colour; the current chapter pulses (as in the prototype's drawMoons).
+ */
+function ChapterMoon({ index, count, orbitNumber, title, state }: {
+  index: number; count: number; orbitNumber: number; title: string; state: ChapterState
+}) {
   const group = useRef<THREE.Group>(null)
   const body = useRef<THREE.Mesh>(null)
+  const surfaceMat = useRef<THREE.MeshStandardMaterial>(null)
+  const glowMat = useRef<THREE.SpriteMaterial>(null)
   const surface = useMemo(() => craterTex(100 + index * 13), [index])
   const glow = useMemo(() => glowTex(), [])
+  // start in the locked colour so the first state change already eases in
+  const col = useMemo(() => STATE_COLOR.locked.clone(), [])
   useEffect(() => () => { surface.dispose(); glow.dispose() }, [surface, glow])
 
-  useFrame((state, dt) => {
-    group.current?.position.set(...chapterPosition(index, count, state.clock.elapsedTime))
+  useFrame(({ clock }, dt) => {
+    const t = clock.elapsedTime
+    const g = group.current, m = surfaceMat.current, s = glowMat.current
+    if (!g || !m || !s) return
+    g.position.set(...chapterPosition(index, count, t))
     if (body.current) body.current.rotation.y += dt * 0.3
+
+    col.lerp(STATE_COLOR[state], Math.min(1, dt * 4))
+    const isCurrent = state === 'current', isLocked = state === 'locked'
+    const pulse = isCurrent ? 0.3 + 0.3 * Math.sin(t * 3) : 0
+    m.emissive.copy(col)
+    m.emissiveIntensity = (isLocked ? 0.12 : 0.35) + pulse * 0.5
+    s.color.copy(col)
+    s.opacity = (isLocked ? 0.15 : 0.45) + pulse
+    g.scale.setScalar(1 + (isCurrent ? 0.08 * Math.sin(t * 3) : 0))
   })
 
   return (
     <group ref={group} position={chapterPosition(index, count, 0)}>
       <mesh ref={body} userData={{ orbitNumber }}>
         <sphereGeometry args={[MOON_RADIUS, 40, 28]} />
-        <meshStandardMaterial map={surface} bumpMap={surface} bumpScale={0.07} roughness={0.95} emissive={DIM} emissiveIntensity={0.12} />
+        <meshStandardMaterial ref={surfaceMat} map={surface} bumpMap={surface} bumpScale={0.07} roughness={0.95} />
       </mesh>
       <sprite scale={[4.4, 4.4, 1]} raycast={() => null}>
-        <spriteMaterial map={glow} color={DIM} transparent opacity={0.15} depthWrite={false} blending={THREE.AdditiveBlending} />
+        <spriteMaterial ref={glowMat} map={glow} transparent depthWrite={false} blending={THREE.AdditiveBlending} />
       </sprite>
+      {/* always mounted (unmounting drei <Html> mid-frame can crash); below the HUD (z-20) */}
+      <Html position={[0, 1.6, 0]} zIndexRange={[10, 0]} style={{ pointerEvents: 'none' }}>
+        <ChapterLabel number={orbitNumber} title={title} state={state} />
+      </Html>
     </group>
   )
 }
 
-/** Cone halfway between chapter `index` and the next, pointing along the ring (the reading order). */
-function ChapterArrow({ index, count }: { index: number; count: number }) {
+/** Cone halfway between chapter `index` and the next, pointing along the ring (the reading order). Mint once chapter `index` is done. */
+function ChapterArrow({ index, count, done }: { index: number; count: number; done: boolean }) {
   const cone = useRef<THREE.Mesh>(null)
   const dir = useMemo(() => new THREE.Vector3(), [])
 
@@ -121,7 +155,7 @@ function ChapterArrow({ index, count }: { index: number; count: number }) {
   return (
     <mesh ref={cone} raycast={() => null}>
       <coneGeometry args={[0.28, 0.75, 14]} />
-      <meshBasicMaterial color={ARROW} transparent opacity={0.7} />
+      <meshBasicMaterial color={done ? MINT : SKY} transparent opacity={0.7} />
     </mesh>
   )
 }
@@ -139,7 +173,8 @@ function CameraFit() {
   return null
 }
 
-export function MoonsScene({ planet }: { planet: Planet }) {
+/** `states`: one per orbit, in the same order as planet.orbits. */
+export function MoonsScene({ planet, states }: { planet: Planet; states: ChapterState[] }) {
   const count = planet.orbits.length
 
   return (
@@ -155,10 +190,10 @@ export function MoonsScene({ planet }: { planet: Planet }) {
       <group rotation-x={MOON_ORBIT_TILT}>
         <OrbitLine />
         {planet.orbits.map((orbit, i) => (
-          <ChapterMoon key={orbit.number} index={i} count={count} orbitNumber={orbit.number} />
+          <ChapterMoon key={orbit.number} index={i} count={count} orbitNumber={orbit.number} title={orbit.title} state={states[i]} />
         ))}
         {planet.orbits.slice(0, -1).map((orbit, i) => (
-          <ChapterArrow key={orbit.number} index={i} count={count} />
+          <ChapterArrow key={orbit.number} index={i} count={count} done={states[i] === 'completed'} />
         ))}
       </group>
 

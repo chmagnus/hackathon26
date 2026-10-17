@@ -3,7 +3,8 @@
  */
 import type { Orbit } from './types'
 
-export type ChapterState = 'locked' | 'current' | 'completed'
+/** 'broken' is reserved for the tamper feature (a chapter whose hashes no longer match); chapterState() never returns it yet. */
+export type ChapterState = 'locked' | 'current' | 'completed' | 'broken'
 
 /** The part of Nova's stored progress this screen needs (one planet's entry in `systems`). */
 export interface ChapterProgress {
