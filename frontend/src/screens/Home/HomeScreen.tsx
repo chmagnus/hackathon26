@@ -12,6 +12,7 @@ import { useRef, useState, type FormEvent } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { HomeScene } from './HomeScene'
 import { HOME_PLANETS, type PlanetId } from './planets'
+import { playPlanetClick } from '../../shared/sounds'
 
 export interface HomeScreenProps {
   completedMoons?: Partial<Record<PlanetId, number>>
@@ -44,6 +45,7 @@ export function HomeScreen(props: HomeScreenProps) {
 
   function selectPlanet(id: PlanetId) {
     if (focusId) return
+    playPlanetClick()
     setFocusId(id)
     setTimeout(() => {
       if (props.onSelectPlanet) props.onSelectPlanet(id)
