@@ -9,6 +9,8 @@
  *  - onBack: go back to the Universe (Home) screen.
  *  - onSelectChapter(orbitNumber): called once the camera has arrived at a chapter moon.
  *  - onSelectMoon(moonId): a concept was picked in the chapter panel -> open the Concept page.
+ *  - brokenFrom: index (into planet.orbits) of the first chapter that fails verification (from /verify), or null.
+ *    If it isn't passed, dev builds show TEMPORARY buttons to try the tamper animation.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
@@ -30,12 +32,19 @@ export interface MoonsScreenProps {
   onBack?: () => void
   onSelectChapter?: (orbitNumber: number) => void
   onSelectMoon?: (moonId: string) => void
+  brokenFrom?: number | null
 }
 
 const logMoon = (moonId: string) => console.log('select moon', moonId)
 
-export function MoonsScreen({ planet = MOCK_PLANET, progress = MOCK_PROGRESS, onBack, onSelectChapter, onSelectMoon = logMoon }: MoonsScreenProps) {
+export function MoonsScreen(props: MoonsScreenProps) {
+  const { planet = MOCK_PLANET, progress = MOCK_PROGRESS, onBack, onSelectChapter, onSelectMoon = logMoon } = props
   const states = planet.orbits.map((orbit) => chapterState(orbit, planet.orbits, progress))
+
+  // TEMPORARY: local tamper state for the dev buttons, used only when the parent doesn't pass brokenFrom
+  const [devBrokenFrom, setDevBrokenFrom] = useState<number | null>(null)
+  const brokenFrom = props.brokenFrom !== undefined ? props.brokenFrom : devBrokenFrom
+  const devTamper = import.meta.env.DEV && props.brokenFrom === undefined ? setDevBrokenFrom : undefined
 
   // single source of truth: which chapter the camera is on (null = overview)
   const [focused, setFocused] = useState<number | null>(null)
@@ -96,9 +105,9 @@ export function MoonsScreen({ planet = MOCK_PLANET, progress = MOCK_PROGRESS, on
           // if the graphics driver drops the WebGL context, ask the browser to restore it instead of staying black
           gl.domElement.addEventListener('webglcontextlost', (e) => e.preventDefault())
         }}>
-        <MoonsScene planet={planet} states={states} focused={focused} onSelectChapter={selectChapter} onArrive={handleArrive} />
+        <MoonsScene planet={planet} states={states} brokenFrom={brokenFrom} focused={focused} onSelectChapter={selectChapter} onArrive={handleArrive} />
       </Canvas>
-      <MoonsHud planet={planet} states={states} onBack={onBack} hideHint={focused !== null} />
+      <MoonsHud planet={planet} states={states} onBack={onBack} hideHint={focused !== null} brokenFrom={brokenFrom} onDevTamper={devTamper} />
 
       {focusedOrbit && (
         <ChapterPanel orbit={focusedOrbit} completed={progress.completed} onSelectMoon={onSelectMoon} onClose={close} />
