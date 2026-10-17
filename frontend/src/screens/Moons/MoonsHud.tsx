@@ -13,11 +13,12 @@ export interface MoonsHudProps {
   /** one state per orbit, in the same order as planet.orbits */
   states: ChapterState[]
   onBack?: () => void
+  onSelectChapter?: (number: number) => void
   /** hide the bottom hint (e.g. while a chapter is focused) */
   hideHint?: boolean
 }
 
-export function MoonsHud({ planet, states, onBack, hideHint }: MoonsHudProps) {
+export function MoonsHud({ planet, states, onBack, onSelectChapter, hideHint }: MoonsHudProps) {
   const currentIdx = states.indexOf('current')
   const current = currentIdx >= 0 ? planet.orbits[currentIdx] : null
   const done = states.filter((s) => s === 'completed').length
@@ -43,6 +44,9 @@ export function MoonsHud({ planet, states, onBack, hideHint }: MoonsHudProps) {
               <span key={i} className={`h-[5px] w-[22px] rounded-[3px] transition-colors ${s === 'completed' ? 'bg-mint' : 'bg-[rgba(151,163,194,.25)]'}`} />
             ))}
           </div>
+          <nav aria-label="Chapters" className="mt-3 flex max-w-[min(420px,calc(100vw-80px))] flex-wrap gap-2">
+            {planet.orbits.map((orbit, index) => <button key={orbit.number} disabled={states[index] === 'locked'} onClick={() => onSelectChapter?.(orbit.number)} className="rounded-lg border border-white/20 px-2 py-1 text-xs hover:border-mint/50 disabled:opacity-40">{states[index] === 'locked' ? 'Locked: ' : 'Open '}{orbit.title}</button>)}
+          </nav>
         </div>
       </div>
 

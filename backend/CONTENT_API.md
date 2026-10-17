@@ -1,75 +1,78 @@
-# First content API: Blockchain and two moons
+# Learning content API
 
-This feature returns one planet, one Foundations orbit, and two ordered moons:
-`ledgers` and `hashing`. Each moon has three dialogue steps and a multiple-choice
-checkpoint. Fixtures live in `src/content_data.py`; models live in `src/schemas.py`.
-There is no Markdown loader, hash verification, tutor, or server-side progress in
-this feature. `chain` is false until chain verification is implemented.
+Four authored paths are available using the existing routes and snake_case models.
 
-## Run and try it
+| Planet ID | Chapters | Lessons | Dialogue steps |
+| --- | ---: | ---: | ---: |
+| `blockchain` | 4 | 16 | 80 |
+| `dijkstra` | 3 | 12 | 60 |
+| `sorting` | 3 | 12 | 60 |
+| `binary-search` | 2 | 8 | 40 |
 
-From the repository root:
+Each lesson has a learning goal, five ordered explanation steps, a worked example
+or application, limitations and common mistakes, one three-option checkpoint,
+and two suggested tutor questions. The full body is generated from those same
+steps so the tutor and reading UI receive identical material. Lesson links use
+`[[moon-id]]` and remain within the current planet.
+
+## Run and inspect
 
 ```bash
 cd backend
 source .venv/bin/activate
-# On first setup, create .venv with uv venv, then install dependencies:
-# uv pip install -r requirements.txt
-fastapi dev src/main.py
+python -m uvicorn src.main:app --reload
 ```
 
-Open <http://localhost:8000/docs> and use **Try it out**, or visit:
+Open <http://localhost:8000/docs>, or request:
 
-| URL | Result |
+| Route | Result |
 | --- | --- |
-| `/api/systems` | Home-screen planet list, with `moon_count: 2` |
-| `/api/systems/blockchain` | Full planet with both lessons |
-| `/api/systems/blockchain/moons/ledgers` | The Ledgers lesson |
-| `/api/systems/blockchain/moons/hashing` | The Hashing lesson |
+| `GET /api/systems` | All four planet summaries and their actual lesson counts |
+| `GET /api/systems/{system_id}` | Planet introduction, ordered chapters and all lessons |
+| `GET /api/systems/{system_id}/moons/{moon_id}` | One full lesson |
 
-Unknown planets and moons return HTTP 404 with
-`{"error": {"code": "system_not_found", "message": "..."}}` or
-`moon_not_found`. These GET endpoints do not save or change any data.
+Examples:
 
-## Frontend integration handoff
+- `/api/systems/blockchain/moons/proof-of-work`
+- `/api/systems/dijkstra/moons/worked-shortest-path`
+- `/api/systems/sorting/moons/merge-sort`
+- `/api/systems/binary-search/moons/duplicate-boundaries`
 
-Keep `/api/systems` and `star` naming for compatibility with the team contract;
-they represent planets and the planet introduction. JSON fields use snake_case.
+Unknown resources return HTTP 404 and the existing `error.code` / `error.message`
+shape. The tutor uses this same content registry automatically.
 
-The frontend owner needs to add this to the existing Vite configuration:
+## Source and integration
 
-```ts
-server: { proxy: { '/api': 'http://localhost:8000' } },
-```
+`src/content_data.py` exports `SYSTEMS` and the planet constants. Authored content
+is separated into four files under `src/lessons/`; the small helpers there assemble
+it into the existing Pydantic models. There is no database, content loader, API
+schema change, or new dependency in this content update. Restart FastAPI after
+editing content unless using reload mode.
 
-With Vite and FastAPI both running, request the planet:
+All planets keep `chain: false`: hash verification and mining widgets are separate
+features. Lessons teach those concepts without claiming this release implements
+an on-server blockchain. Widget fields remain null because reading and checkpoints
+are usable without an unfinished widget.
 
-```ts
-const response = await fetch('/api/systems/blockchain');
-if (!response.ok) throw new Error('Could not load Blockchain');
-const planet = await response.json();
-const moons = planet.orbits.flatMap((orbit) => orbit.moons);
-```
+The frontend now fetches the planet list and full planet responses through the
+Vite `/api` proxy to port 8000, passing real content and progress to `MoonsScreen`.
+Concept pages fetch the individual moon endpoint using both planet and moon IDs.
+Errors show a retry action rather than silently substituting old lesson copies.
+`dialogue_steps` renders through the team's story layout, including Markdown
+code blocks and internal lesson links. Chapter moons represent orbits; concepts
+inside each chapter are the API's `moons` list. Existing Blockchain IDs, including
+`ledgers` and `hashing`, are retained for navigation/progress compatibility.
 
-Use `planet.title` and `planet.colour` for the planet. Draw moons from `moons`,
-in their returned order. On a moon click, use its already-loaded
-`dialogue_steps` array for Next/Back dialogue boxes, then show `check`. Render
-step `body` as Markdown and `[[moon-id]]` as a link to another moon. Completion
-is checked locally against `check.answer`; answers are public in this prototype.
+Local progress keeps `version`, `systems` (completed lesson IDs and edits), and
+`captured` (planet IDs in completion order). Older saved progress without capture
+order still loads. Complete a checkpoint to save a lesson; complete earlier
+chapters to unlock later ones. The backend supplies content, not accounts or
+server-side progress. API schemas and route paths are unchanged by integration.
 
-The frontend controls positions, zoom, loading/error states, and progress.
-Its current hard-coded Blockchain count of five should become the API's
-`moon_count` of two. Visuals and the Vite config are not changed by this feature.
-
-The new `MoonsScreen` accepts the full response through its `planet` prop. It
-currently draws one visible moon per orbit/chapter and lists that chapter's
-concepts inside a panel. This fixture therefore produces one Foundations
-chapter moon containing Ledgers and Hashing. Showing each concept as a separate
-visible moon would need a frontend layout change. Add `dialogue_steps` to the
-frontend Moon type (or generate types from OpenAPI) before using the dialogue UI.
-
-Run the backend tests from the repository root:
+Run content and API tests from the repository root:
 
 ```bash
 backend/.venv/bin/python -m unittest discover -s backend/tests -v
 ```
+
+See [LESSONS.md](LESSONS.md) for the curriculum, source references, and authoring notes.

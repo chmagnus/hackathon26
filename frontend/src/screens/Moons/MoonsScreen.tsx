@@ -6,8 +6,8 @@
  * Click an unlocked moon: the orbits freeze, the camera flies to it, and its concepts are listed.
  *
  * Plug-in points:
- *  - planet: will come from GET /api/systems/{id}. Until then the mock blockchain planet is used.
- *  - progress: will come from the shared progress store. Until then mock progress is used.
+ *  - planet: App supplies GET /api/systems/{id}; the default mock is for isolated scene development.
+ *  - progress: App supplies persisted learning progress; the default is only for isolated development.
  *  - onSelectChapter(orbitNumber): called once the camera has arrived at a chapter moon.
  *  - onSelectMoon(moonId): a concept was picked in the chapter panel -> open the Concept page.
  * Which planet/chapter the camera is on lives in the shared view (src/galaxy/view.ts).
@@ -30,11 +30,12 @@ export interface MoonsScreenProps {
   progress?: ChapterProgress
   onSelectChapter?: (orbitNumber: number) => void
   onSelectMoon?: (moonId: string) => void
+  conceptOpen?: boolean
 }
 
 const logMoon = (moonId: string) => console.log('select moon', moonId)
 
-export function MoonsScreen({ planet = MOCK_PLANET, progress = MOCK_PROGRESS, onSelectChapter, onSelectMoon = logMoon }: MoonsScreenProps) {
+export function MoonsScreen({ planet = MOCK_PLANET, progress = MOCK_PROGRESS, onSelectChapter, onSelectMoon = logMoon, conceptOpen = false }: MoonsScreenProps) {
   const states = planet.orbits.map((orbit) => chapterState(orbit, planet.orbits, progress))
 
   const view = useView((s) => s.view)
@@ -82,7 +83,7 @@ export function MoonsScreen({ planet = MOCK_PLANET, progress = MOCK_PROGRESS, on
 
   // Escape: close the open chapter, or with none open go back to the universe (same as "← Universe")
   useEffect(() => {
-    if (!atPlanet) return
+    if (!atPlanet || conceptOpen) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
       if (chapter !== null) setChapter(null)
@@ -90,7 +91,7 @@ export function MoonsScreen({ planet = MOCK_PLANET, progress = MOCK_PROGRESS, on
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [atPlanet, chapter, setChapter, setView])
+  }, [atPlanet, chapter, conceptOpen, setChapter, setView])
 
   return (
     <>
@@ -100,9 +101,9 @@ export function MoonsScreen({ planet = MOCK_PLANET, progress = MOCK_PROGRESS, on
 
       {/* overlay on top of the Universe canvas: lets the pointer through, except on its own panels and buttons */}
       <div className={`pointer-events-none absolute inset-0 overflow-hidden font-body text-ink transition-[opacity,visibility] duration-500 ${here ? '' : 'invisible opacity-0'}`}>
-        <MoonsHud planet={planet} states={states} onBack={() => setView({ mode: 'universe' })} hideHint={chapter !== null} />
+        <MoonsHud planet={planet} states={states} onBack={() => setView({ mode: 'universe' })} onSelectChapter={selectChapter} hideHint={chapter !== null} />
 
-        {focusedOrbit && (
+        {focusedOrbit && !conceptOpen && (
           <ChapterPanel orbit={focusedOrbit} completed={progress.completed} onSelectMoon={onSelectMoon} onClose={close} />
         )}
 

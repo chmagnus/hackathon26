@@ -18,8 +18,8 @@ import SharedLedgerStory from './lessons/SharedLedgerStory'
 
 /** Moons with their own interactive scene. Anything else uses GenericLesson. */
 const LESSONS: Record<string, ComponentType<LessonProps>> = {
-  ledgers: SharedLedgerStory, // the prototype's Story Scroll
-  hashing: HashingLesson,
+  'blockchain/ledgers': SharedLedgerStory,
+  'blockchain/hashing': HashingLesson,
 }
 
 type ConceptScreenProps = Omit<LessonProps, 'moon' | 'planetId'> & {
@@ -27,20 +27,22 @@ type ConceptScreenProps = Omit<LessonProps, 'moon' | 'planetId'> & {
   moonId: string
 }
 
-type Loaded = { moonId: string; moon: Moon | null; error: string | null }
+type Loaded = { key: string; moon: Moon | null; error: string | null }
 
 export default function ConceptScreen({ planetId = 'blockchain', moonId, ...handlers }: ConceptScreenProps) {
   const [loaded, setLoaded] = useState<Loaded | null>(null)
+  const [attempt, setAttempt] = useState(0)
+  const key = `${planetId}/${moonId}`
 
   useEffect(() => {
-    let cancelled = false
-    fetchMoon(planetId, moonId)
-      .then((moon) => !cancelled && setLoaded({ moonId, moon, error: null }))
-      .catch((e: Error) => !cancelled && setLoaded({ moonId, moon: null, error: e.message }))
-    return () => { cancelled = true }
-  }, [planetId, moonId])
+    const controller = new AbortController()
+    fetchMoon(planetId, moonId, controller.signal)
+      .then((moon) => !controller.signal.aborted && setLoaded({ key, moon, error: null }))
+      .catch((e: Error) => !controller.signal.aborted && setLoaded({ key, moon: null, error: e.message }))
+    return () => controller.abort()
+  }, [planetId, moonId, key, attempt])
 
-  const current = loaded?.moonId === moonId ? loaded : null
+  const current = loaded?.key === key ? loaded : null
 
   if (!current?.moon) {
     return (
@@ -53,13 +55,14 @@ export default function ConceptScreen({ planetId = 'blockchain', moonId, ...hand
           )}
           <h1 className="font-display text-2xl font-semibold tracking-wide">{current?.error ? 'Not ready yet' : 'Loading…'}</h1>
         </header>
-        <p className="px-5 py-20 text-center text-muted">
-          {current?.error ? "This moon's lesson isn't written yet. Check back soon!" : 'Loading the lesson…'}
+        <p role={current?.error ? 'alert' : 'status'} className="px-5 pb-5 pt-20 text-center text-muted">
+          {current?.error ?? 'Loading the lesson…'}
         </p>
+        {current?.error && <button onClick={() => { setLoaded(null); setAttempt((value) => value + 1) }} className="mx-auto rounded-xl bg-mint px-5 py-3 font-bold text-void">Try again</button>}
       </div>
     )
   }
 
-  const Lesson = LESSONS[current.moon.id] ?? GenericLesson
+  const Lesson = LESSONS[`${planetId}/${current.moon.id}`] ?? GenericLesson
   return <Lesson key={current.moon.id} planetId={planetId} moon={current.moon} {...handlers} />
 }
