@@ -56,6 +56,9 @@ export function HomeScreen(props: HomeScreenProps) {
   const view = useView((s) => s.view)
   const setView = useView((s) => s.setView)
   const focusId = view.mode === 'planet' ? view.id : null
+  // fades out as the camera starts closing in on a planet, and back in once it has flown back out
+  const zoomStarted = useView((s) => s.zoomStarted)
+  const labelsHidden = focusId !== null || zoomStarted
 
   function selectPlanet(id: PlanetId) {
     if (focusId) return
@@ -94,10 +97,10 @@ export function HomeScreen(props: HomeScreenProps) {
 
   return (
     // overlay on top of the Universe canvas: lets the pointer through, except on its own panels and buttons.
-    // Fades out while the camera is on a planet (the Moon overlay shows there instead).
-    <div className={`pointer-events-none absolute inset-0 overflow-hidden font-body text-ink transition-[opacity,visibility] duration-300 ${focusId ? 'invisible opacity-0' : ''}`}>
+    // Fades out as the camera closes in on a planet (the Moon overlay shows there instead).
+    <div className={`pointer-events-none absolute inset-0 overflow-hidden font-body text-ink transition-[opacity,visibility] duration-300 ${zoomStarted ? 'invisible opacity-0' : ''}`}>
       <InUniverse>
-        <HomeScene completedMoons={completedMoons} captured={captured} justCaptured={justCaptured} focusId={focusId} onPlanetClick={selectPlanet} labelRoot={universeLabelRoot} />
+        <HomeScene completedMoons={completedMoons} captured={captured} justCaptured={justCaptured} labelsHidden={labelsHidden} onPlanetClick={selectPlanet} labelRoot={universeLabelRoot} />
       </InUniverse>
 
       {/* user chip (top-left, as in the whiteboard sketch) */}

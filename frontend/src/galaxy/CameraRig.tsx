@@ -4,12 +4,14 @@
  *  - planet mode: one continuous flight to PLANET_VIEW_DISTANCE from the planet, then follows the planet as it drifts
  *  - planet mode + chapter: flies to MOON_VIEW_DISTANCE from that chapter's moon and follows it
  * Driven by useView(); marks `arrived` / `chapterArrived` once the camera gets there.
+ * Also works out live.zoom every frame (and the zoomStarted / zoomedIn flags) for the fades.
  */
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { CameraControls, CameraControlsImpl } from '@react-three/drei'
 import * as THREE from 'three'
-import { chapterPositions, planetPositions, useView } from './view'
+import type { PlanetId } from '../screens/Home/planets'
+import { chapterPositions, live, planetPositions, useView } from './view'
 
 /** Overview position on a wide screen (pulled back on tall/narrow ones). */
 const START = new THREE.Vector3(0, 38, 84)
@@ -21,10 +23,38 @@ const MOON_VIEW_ELEVATION = 0.32
 /** Home's old OrbitControls autoRotateSpeed 0.25, in radians per second. */
 const AUTO_ROTATE = ((2 * Math.PI) / 60) * 0.25
 const UNIVERSE_DISTANCE: [number, number] = [30, 260]
-const PLANET_DISTANCE: [number, number] = [10, 60]
+// capped at 30 so zooming out by hand in planet mode keeps live.zoom near 1 (the moons stay out)
+const PLANET_DISTANCE: [number, number] = [10, 30]
 const MOON_DISTANCE: [number, number] = [3, 20]
 /** If the user zooms during a flight it may never hit the distance exactly; count it as arrived after this long. */
 const ARRIVE_TIMEOUT = 2.5
+
+/** live.zoom: 0 at ZOOM_FAR or further from the planet, 1 at ZOOM_NEAR or closer. */
+const ZOOM_FAR = 60
+const ZOOM_NEAR = 25
+/** [on, off] thresholds for the flags, with a gap so they don't flicker around one value */
+const ZOOM_STARTED: [number, number] = [0.08, 0.03]
+const ZOOMED_IN: [number, number] = [0.97, 0.9]
+
+function smoothstep(edge0: number, edge1: number, x: number) {
+  const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)))
+  return t * t * (3 - 2 * t)
+}
+
+/**
+ * live.zoom from the camera's distance to the planet being visited. In universe mode it may only fall: it runs
+ * in reverse while flying out, but moving close to a planet by hand on the overview never brings the moons out.
+ */
+function updateZoom(camera: THREE.Camera, planetId: PlanetId | null) {
+  const s = useView.getState()
+  const p = planetId ? planetPositions[planetId] : undefined
+  const z = p ? smoothstep(ZOOM_FAR, ZOOM_NEAR, camera.position.distanceTo(p)) : 0
+  live.zoom = s.view.mode === 'planet' ? z : Math.min(live.zoom, z)
+
+  const zoomStarted = live.zoom > ZOOM_STARTED[s.zoomStarted ? 1 : 0]
+  const zoomedIn = s.zoomedIn ? live.zoom > ZOOMED_IN[1] : live.zoom >= ZOOMED_IN[0]
+  if (zoomStarted !== s.zoomStarted || zoomedIn !== s.zoomedIn) s.setZoomFlags({ zoomStarted, zoomedIn })
+}
 
 export function CameraRig() {
   const controls = useRef<CameraControlsImpl>(null)
@@ -33,6 +63,8 @@ export function CameraRig() {
   const get = useThree((s) => s.get)
   const dragging = useRef(false)
   const flightTime = useRef(0)
+  /** the planet live.zoom is measured against: the one being visited, or the last one after flying back out */
+  const zoomPlanet = useRef<PlanetId | null>(null)
   const target = useMemo(() => new THREE.Vector3(), [])
 
   useEffect(() => {
@@ -72,6 +104,8 @@ export function CameraRig() {
     const c = controls.current
     if (!c) return
     const s = useView.getState()
+    if (s.view.mode === 'planet') zoomPlanet.current = s.view.id
+    updateZoom(c.camera, zoomPlanet.current)
 
     if (s.view.mode === 'universe') {
       if (!dragging.current) c.rotate(-AUTO_ROTATE * dt, 0, false)

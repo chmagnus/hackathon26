@@ -17,8 +17,8 @@ export interface HomeSceneProps {
   captured: PlanetId[]
   /** a planet that was completed just before coming back here: plays the pull-into-orbit animation */
   justCaptured?: PlanetId | null
-  /** planet the camera is on (planet mode): labels hide and planets can't be clicked */
-  focusId: PlanetId | null
+  /** while the camera is on (or closing in on) a planet: labels fade out and planets can't be clicked */
+  labelsHidden: boolean
   onPlanetClick: (id: PlanetId) => void
   /** element the planet labels are attached to. Without a fixed one, drei rebuilds the labels after the first frame and the first label comes out empty. */
   labelRoot: RefObject<HTMLDivElement>
@@ -90,7 +90,7 @@ function DriftingPlanet({ planet, index, done, slot, animateIn, showLabel, label
 
 // the camera (intro, auto-rotate, fly to planet) is the shared rig in src/galaxy/CameraRig.tsx
 
-export function HomeScene({ completedMoons, captured, justCaptured, focusId, onPlanetClick, labelRoot }: HomeSceneProps) {
+export function HomeScene({ completedMoons, captured, justCaptured, labelsHidden, onPlanetClick, labelRoot }: HomeSceneProps) {
   return (
     <>
       {captured.map((id, slot) => <OrbitRing key={id} radius={ORBIT_RADII[slot]} />)}
@@ -102,7 +102,7 @@ export function HomeScene({ completedMoons, captured, justCaptured, focusId, onP
           done={completedMoons[p.id] ?? 0}
           slot={captured.indexOf(p.id)}
           animateIn={justCaptured === p.id}
-          showLabel={!focusId}
+          showLabel={!labelsHidden}
           labelRoot={labelRoot}
           onClick={() => onPlanetClick(p.id)}
         />

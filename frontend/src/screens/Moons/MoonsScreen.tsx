@@ -38,13 +38,14 @@ export function MoonsScreen({ planet = MOCK_PLANET, progress = MOCK_PROGRESS, on
   const states = planet.orbits.map((orbit) => chapterState(orbit, planet.orbits, progress))
 
   const view = useView((s) => s.view)
-  const arrived = useView((s) => s.arrived)
+  const zoomedIn = useView((s) => s.zoomedIn)
   const chapter = useView((s) => s.chapter)
   const chapterArrived = useView((s) => s.chapterArrived)
   const setView = useView((s) => s.setView)
   const setChapter = useView((s) => s.setChapter)
-  // the overlay shows once the camera has reached this planet
-  const here = view.mode === 'planet' && view.id === planet.id && arrived
+  const atPlanet = view.mode === 'planet' && view.id === planet.id
+  // the overlay fades in once the camera is essentially at this planet (live.zoom ~1)
+  const here = atPlanet && zoomedIn
   // the panel only shows once the camera has finished flying to the chapter's moon
   const focusedOrbit = chapter !== null && chapterArrived ? planet.orbits.find((o) => o.number === chapter) ?? null : null
 
@@ -79,12 +80,17 @@ export function MoonsScreen({ planet = MOCK_PLANET, progress = MOCK_PROGRESS, on
   // close the chapter: the camera flies back to the planet view and the orbits resume
   const close = () => setChapter(null)
 
+  // Escape: close the open chapter, or with none open go back to the universe (same as "← Universe")
   useEffect(() => {
-    if (chapter === null) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setChapter(null) }
+    if (!atPlanet) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      if (chapter !== null) setChapter(null)
+      else setView({ mode: 'universe' })
+    }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [chapter, setChapter])
+  }, [atPlanet, chapter, setChapter, setView])
 
   return (
     <>

@@ -3,14 +3,17 @@
  * one crater moon per chapter on a tilted dashed ring, arrows between consecutive chapters, state colours and pulse.
  * Lit by Home's star like everything else. Follows the planet as it drifts.
  *
- * Only visible (and clickable) in planet mode once the camera has arrived. While a chapter is focused the orbits pause.
+ * The moons "emerge" from the planet as the camera flies in: ring radius and moon size grow with live.zoom,
+ * the dashed ring and arrows fade in with it, and it all runs in reverse on the way out. Moons are scaled only,
+ * never made see-through, to avoid sorting glitches. Labels and clicks only once zoomed in. While a chapter is
+ * focused the orbits pause.
  */
 import { useEffect, useMemo, useRef, type RefObject } from 'react'
 import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import * as THREE from 'three'
 import { universeLabelRoot } from '../../galaxy/labelRoot'
-import { chapterPositions, planetPositions, useView } from '../../galaxy/view'
+import { chapterPositions, live, planetPositions, REDUCED_MOTION, useView } from '../../galaxy/view'
 import { HOME_PLANETS, type PlanetId } from '../Home/planets'
 import { ChapterLabel } from './ChapterLabel'
 import type { ChapterState } from './chapters'
@@ -37,6 +40,11 @@ type OrbitClock = RefObject<number>
 
 const stop = (e: ThreeEvent<PointerEvent | MouseEvent>) => e.stopPropagation()
 
+/** How far the moons have emerged (0 = inside the planet, 1 = full ring). With reduced motion: no growing, just on/off. */
+const emerged = () => (REDUCED_MOTION ? (live.zoom > 0.5 ? 1 : 0) : live.zoom)
+/** Scale can't be exactly 0 (the matrix would be singular), so collapse to this instead. */
+const TINY = 1e-3
+
 function OrbitLine() {
   const line = useMemo(() => {
     const pts = Array.from({ length: 201 }, (_, k) => {
@@ -52,7 +60,18 @@ function OrbitLine() {
     return l
   }, [])
   useEffect(() => () => { line.geometry.dispose(); (line.material as THREE.Material).dispose() }, [line])
-  return <primitive object={line} />
+
+  // grows out of the planet and fades in with the moons
+  const ref = useRef<THREE.Line>(null)
+  useFrame(() => {
+    const l = ref.current
+    if (!l) return
+    const e = emerged()
+    l.scale.setScalar(Math.max(TINY, e))
+    ;(l.material as THREE.LineDashedMaterial).opacity = 0.3 * e
+  })
+
+  return <primitive ref={ref} object={line} />
 }
 
 /**
@@ -62,7 +81,7 @@ function OrbitLine() {
  */
 function ChapterMoon({ index, count, orbitNumber, title, state, active, orbitClock, onSelect }: {
   index: number; count: number; orbitNumber: number; title: string; state: ChapterState
-  /** visible and clickable */
+  /** zoomed in on this planet: label shown and clickable */
   active: boolean
   orbitClock: OrbitClock
   onSelect: (orbitNumber: number) => void
@@ -85,7 +104,10 @@ function ChapterMoon({ index, count, orbitNumber, title, state, active, orbitClo
     const t = clock.elapsedTime
     const g = group.current, m = surfaceMat.current, s = glowMat.current
     if (!g || !m || !s) return
-    g.position.set(...chapterPosition(index, count, orbitClock.current))
+    // emerge: out from the planet's centre to the ring, growing from nothing
+    const e = emerged()
+    g.visible = e > TINY
+    g.position.set(...chapterPosition(index, count, orbitClock.current)).multiplyScalar(e)
     g.getWorldPosition(chapterPositions[orbitNumber] ??= new THREE.Vector3())
     if (body.current) body.current.rotation.y += dt * 0.3
 
@@ -97,11 +119,11 @@ function ChapterMoon({ index, count, orbitNumber, title, state, active, orbitClo
     m.emissiveIntensity = (isLocked ? 0.12 : 0.35) + pulse * 0.5 + lift
     s.color.copy(col)
     s.opacity = (isLocked ? 0.15 : 0.45) + pulse + lift * 0.6
-    g.scale.setScalar(1 + (isCurrent ? 0.08 * Math.sin(t * 3) : 0))
+    g.scale.setScalar(Math.max(TINY, e) * (1 + (isCurrent ? 0.08 * Math.sin(t * 3) : 0)))
   })
 
   return (
-    <group ref={group} position={chapterPosition(index, count, 0)}>
+    <group ref={group} visible={false} scale={TINY}>
       <mesh
         ref={body}
         userData={{ orbitNumber }}
@@ -141,20 +163,26 @@ function ChapterMoon({ index, count, orbitNumber, title, state, active, orbitClo
 /** Cone halfway between chapter `index` and the next, pointing along the ring (the reading order). Mint once chapter `index` is done. */
 function ChapterArrow({ index, count, done, orbitClock }: { index: number; count: number; done: boolean; orbitClock: OrbitClock }) {
   const cone = useRef<THREE.Mesh>(null)
+  const mat = useRef<THREE.MeshBasicMaterial>(null)
   const dir = useMemo(() => new THREE.Vector3(), [])
 
   useFrame(() => {
     const m = cone.current
-    if (!m) return
+    if (!m || !mat.current) return
+    const e = emerged()
     const a = arrowAngle(index, count, orbitClock.current)
-    m.position.set(Math.cos(a) * MOON_ORBIT_RADIUS, 0, Math.sin(a) * MOON_ORBIT_RADIUS)
+    const r = MOON_ORBIT_RADIUS * e
+    m.visible = e > TINY
+    m.position.set(Math.cos(a) * r, 0, Math.sin(a) * r)
     m.quaternion.setFromUnitVectors(UP, dir.set(-Math.sin(a), 0, Math.cos(a)))
+    m.scale.setScalar(Math.max(TINY, e))
+    mat.current.opacity = 0.7 * e
   })
 
   return (
-    <mesh ref={cone} raycast={() => null}>
+    <mesh ref={cone} visible={false} raycast={() => null}>
       <coneGeometry args={[0.28, 0.75, 14]} />
-      <meshBasicMaterial color={done ? MINT : SKY} transparent opacity={0.7} />
+      <meshBasicMaterial ref={mat} color={done ? MINT : SKY} transparent opacity={0} />
     </mesh>
   )
 }
@@ -171,9 +199,10 @@ export function MoonSystem({ planet, states, onSelectChapter }: MoonSystemProps)
   const planetId = planet.id as PlanetId
   const planetRadius = HOME_PLANETS.find((p) => p.id === planetId)?.radius ?? 2.6
   const view = useView((s) => s.view)
-  const arrived = useView((s) => s.arrived)
+  const zoomedIn = useView((s) => s.zoomedIn)
   const paused = useView((s) => s.chapter !== null)
-  const active = view.mode === 'planet' && view.id === planetId && arrived
+  // labels and clicks only once essentially at this planet (live.zoom ~1); the moons themselves follow live.zoom
+  const active = view.mode === 'planet' && view.id === planetId && zoomedIn
 
   const root = useRef<THREE.Group>(null)
   const orbitClock = useRef(0)
@@ -187,7 +216,7 @@ export function MoonSystem({ planet, states, onSelectChapter }: MoonSystemProps)
   })
 
   return (
-    <group ref={root} visible={active}>
+    <group ref={root}>
       <group scale={MOON_SYSTEM_SCALE}>
         {/* invisible stand-in for Home's planet: blocks clicks and hovers on moons behind it (only while active,
             otherwise it would swallow clicks meant for the planet itself) */}
