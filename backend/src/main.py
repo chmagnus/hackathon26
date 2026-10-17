@@ -1,7 +1,9 @@
 import json
 import logging
 
-from fastapi import FastAPI, Request
+from pydantic import BaseModel
+from .routes.systems import router as systems_router
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from schemas import TutorRequest
@@ -12,6 +14,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("nova")
 
 app = FastAPI(title="Nova API")
+app.include_router(systems_router)
 
 try:
     from workers import asgi  # only available on Cloudflare
