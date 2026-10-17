@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-app = FastAPI(title="My API")
+app = FastAPI(title="Nova API")
 
 
 class Item(BaseModel):
@@ -18,14 +18,11 @@ def root():
     return {"message": "Hello, world"}
 
 
-@app.get("/items/{item_id}")
-def get_item(item_id: int):
-    if item_id not in items:
-        raise HTTPException(status_code=404, detail="Item not found")
-    return items[item_id]
+@app.get("/api/health")
+def health():
+    return {"status": "ok"}
 
 
-@app.post("/items/{item_id}")
-def create_item(item_id: int, item: Item):
-    items[item_id] = item
-    return {"id": item_id, "item": item}
+@app.get("/api/hello")
+def hello(name: str = "world"):
+    return {"message": f"Hello, {name} from Nova"}
