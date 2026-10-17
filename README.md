@@ -99,28 +99,3 @@ Run backend tests from the repository root:
 backend/.venv/bin/python -m unittest discover -s backend/tests -v
 ```
 
-### Learning content
-
-The content API includes 48 lessons: Blockchain (16), Dijkstra & OSPF (12),
-Sorting (12), and Binary Search (8). Each has five dialogue steps, a learning
-goal, worked examples, a checkpoint, and tutor questions. See
-[the curriculum](backend/LESSONS.md) and [API integration notes](backend/CONTENT_API.md).
-The frontend loads these paths from the content API. Run both servers, choose
-a name or continue as a guest, and use a planet or an **Explore** button. Open
-its first chapter and choose a lesson. Use **Previous/Next** or scroll through
-the story, then pass its checkpoint and press **Complete moon**. Completed
-chapters unlock later ones; completing every lesson captures the planet into
-your orbit. Progress and capture order are stored in this browser under
-`galaxy-progress-v1`. **Reset progress** on Home clears them after confirmation.
-
-After pulling, run `npm install` in `frontend/` for the Markdown renderer.
-The existing shared canvas and camera are retained. Ledgers and Hashing have
-interactive scenes; all other lessons use the same story/checkpoint layout.
-The default mock tutor works without API keys and identifies itself as offline.
-
-Frontend checks: `npm run build`, `npm run lint`, and `npm test` inside
-`frontend/`. The progress test uses Node's built-in TypeScript stripping
-(Node 22.6+ or 24). Regenerate API types after schema changes with
-`bash scripts/gen_types.sh` from the repository root; the generator is isolated
-from the app's TypeScript version.
-

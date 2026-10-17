@@ -12,7 +12,6 @@ import { HOME_PLANETS, ORBIT_RADII, type HomePlanet, type PlanetId } from './pla
 import { PlanetBody } from './PlanetBody'
 
 export interface HomeSceneProps {
-  planets?: HomePlanet[]
   completedMoons: Partial<Record<PlanetId, number>>
   /** planets in the user's orbit, in the order they were completed */
   captured: PlanetId[]
@@ -67,7 +66,7 @@ function DriftingPlanet({ planet, index, done, slot, animateIn, showLabel, label
   })
 
   const inOrbit = slot >= 0
-  const status = inOrbit ? 'In your orbit' : planet.live ? `${done} of ${planet.moons} lessons` : 'Loading lessons'
+  const status = inOrbit ? 'In your orbit' : planet.live ? `${done} of ${planet.moons} moons` : 'Coming soon'
 
   return (
     <group ref={group}>
@@ -77,8 +76,6 @@ function DriftingPlanet({ planet, index, done, slot, animateIn, showLabel, label
       <Html portal={labelRoot} position={[0, planet.radius + 1.6, 0]} center zIndexRange={[10, 0]} style={{ opacity: showLabel ? 1 : 0, transition: 'opacity .3s', pointerEvents: showLabel ? 'auto' : 'none' }}>
           <button
             onClick={onClick}
-            tabIndex={showLabel ? 0 : -1}
-            aria-hidden={!showLabel}
             className={`block cursor-pointer whitespace-nowrap rounded-xl border bg-[#060914]/80 px-3 py-1.5 text-center backdrop-blur ${
               inOrbit ? 'border-mint/40 text-mint' : planet.live ? 'border-gold/50 text-gold' : 'border-white/15 text-muted'
             }`}
@@ -93,11 +90,11 @@ function DriftingPlanet({ planet, index, done, slot, animateIn, showLabel, label
 
 // the camera (intro, auto-rotate, fly to planet) is the shared rig in src/galaxy/CameraRig.tsx
 
-export function HomeScene({ planets = HOME_PLANETS, completedMoons, captured, justCaptured, labelsHidden, onPlanetClick, labelRoot }: HomeSceneProps) {
+export function HomeScene({ completedMoons, captured, justCaptured, labelsHidden, onPlanetClick, labelRoot }: HomeSceneProps) {
   return (
     <>
       {captured.map((id, slot) => <OrbitRing key={id} radius={ORBIT_RADII[slot]} />)}
-      {planets.map((p, i) => (
+      {HOME_PLANETS.map((p, i) => (
         <DriftingPlanet
           key={p.id}
           planet={p}

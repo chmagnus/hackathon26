@@ -154,7 +154,7 @@ function ChapterMoon({ index, count, orbitNumber, title, state, active, orbitClo
       {/* always mounted (unmounting drei <Html> mid-frame can crash); faded out while the moons are hidden; below the HUD (z-20) */}
       <Html portal={universeLabelRoot} position={[0, 1.6, 0]} zIndexRange={[10, 0]}
         style={{ pointerEvents: 'none', opacity: active ? 1 : 0, transition: 'opacity .3s' }}>
-        <ChapterLabel number={orbitNumber} title={title} state={state} active={active} />
+        <ChapterLabel number={orbitNumber} title={title} state={state} />
       </Html>
     </group>
   )

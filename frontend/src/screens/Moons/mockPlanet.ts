@@ -13,8 +13,6 @@ function orbit(number: number, title: string, drafts: MoonDraft[]): Orbit {
     body: `${summary}\n\n${goal}`,
     orbit: number,
     order: i + 1,
-    nonce: 0,
-    dialogue_steps: [{ id: 'step-1', title, body: `${summary}\n\n${goal}` }],
   }))
   return { number, title, moons }
 }
