@@ -22,7 +22,7 @@ export function ChapterPanel({ orbit, completed, onSelectMoon, onClose }: Chapte
   return (
     <aside
       aria-label={`Chapter ${orbit.number}: ${orbit.title}`}
-      className={`${EDGE} absolute z-30 flex flex-col overflow-hidden bg-glass backdrop-blur-lg max-sm:inset-x-0 max-sm:bottom-0 max-sm:max-h-[60%] max-sm:rounded-t-[20px] max-sm:border-b-0 sm:bottom-4 sm:right-4 sm:top-4 sm:w-[360px] sm:rounded-[20px]`}
+      className={`${EDGE} pointer-events-auto absolute z-30 flex flex-col overflow-hidden bg-glass backdrop-blur-lg max-sm:inset-x-0 max-sm:bottom-0 max-sm:max-h-[60%] max-sm:rounded-t-[20px] max-sm:border-b-0 sm:bottom-4 sm:right-4 sm:top-4 sm:w-[360px] sm:rounded-[20px]`}
     >
       <header className="flex items-start justify-between gap-3 border-b border-[rgba(140,170,255,.17)] px-[18px] pb-3 pt-3.5">
         <div>

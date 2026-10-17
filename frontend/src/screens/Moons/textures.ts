@@ -1,5 +1,5 @@
 /**
- * Canvas-drawn textures for the Planet view. Glows reuse Home's radialTexture; the crater surface is ported from the prototype.
+ * Canvas-drawn textures for the moon system. The glow reuses Home's radialTexture; the crater surface is ported from the prototype.
  */
 import * as THREE from 'three'
 import { radialTexture } from '../Home/textures'
@@ -12,10 +12,8 @@ export function rng(seed: number) {
   }
 }
 
-/** White glow, tinted by the sprite colour (planet and moon halos). */
+/** White glow, tinted by the sprite colour (moon halos). */
 export const glowTex = () => radialTexture([[0, 'rgba(255,255,255,1)'], [0.2, 'rgba(255,255,255,.6)'], [0.5, 'rgba(255,255,255,.12)'], [1, 'rgba(255,255,255,0)']])
-/** Warm star glow (the far sun). Same stops as Home's star corona. */
-export const warmTex = () => radialTexture([[0, 'rgba(255,250,235,1)'], [0.15, 'rgba(255,220,150,.85)'], [0.4, 'rgba(255,160,70,.25)'], [1, 'rgba(255,120,40,0)']])
 
 /** Grey cratered moon surface. */
 export function craterTex(seed: number) {
