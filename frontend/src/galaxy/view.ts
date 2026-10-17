@@ -22,11 +22,14 @@ interface ViewState {
    */
   zoomStarted: boolean
   zoomedIn: boolean
+  /** a concept page is open over the focused chapter: the camera eases a little closer to its moon */
+  reading: boolean
   setView: (view: View) => void
   setArrived: () => void
   setChapter: (chapter: number | null) => void
   setChapterArrived: () => void
   setZoomFlags: (flags: { zoomStarted: boolean; zoomedIn: boolean }) => void
+  setReading: (reading: boolean) => void
 }
 
 export const useView = create<ViewState>((set) => ({
@@ -36,11 +39,13 @@ export const useView = create<ViewState>((set) => ({
   chapterArrived: false,
   zoomStarted: false,
   zoomedIn: false,
-  setView: (view) => set({ view, arrived: false, chapter: null, chapterArrived: false }),
+  reading: false,
+  setView: (view) => set({ view, arrived: false, chapter: null, chapterArrived: false, reading: false }),
   setArrived: () => set({ arrived: true }),
-  setChapter: (chapter) => set({ chapter, chapterArrived: false }),
+  setChapter: (chapter) => set({ chapter, chapterArrived: false, reading: false }),
   setChapterArrived: () => set({ chapterArrived: true }),
   setZoomFlags: (flags) => set(flags),
+  setReading: (reading) => set({ reading }),
 }))
 
 /** Where each planet is right now. Written every frame by Home's planets, read by the camera (not React state). */
