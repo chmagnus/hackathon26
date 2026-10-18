@@ -6,8 +6,9 @@
  * Click an unlocked moon: the orbits freeze, the camera flies to it, and its concepts are listed.
  *
  * Plug-in points:
- *  - planet: will come from GET /api/systems/{id}. Until then the mock blockchain planet is used.
- *  - progress: will come from the shared progress store. Until then mock progress is used.
+ *  - planet: from GET /api/systems/{id} (App passes it). Without it the mock blockchain planet is used.
+ *  - progress / onCompleteMoon(moonId): the planet's saved progress, and a concept was completed on its page.
+ *    Without them, mock progress is used and completions only last this session.
  *  - onSelectChapter(orbitNumber): called once the camera has arrived at a chapter moon.
  *  - renderConcept(moonId, handlers): renders the Concept page for a picked concept. The card-expands transition
  *    in and out of it is handled here (useConceptTransition); `handlers` (onBack/onComplete/onOpenMoon) go to the page.
@@ -35,13 +36,14 @@ export interface MoonsScreenProps {
   progress?: ChapterProgress
   onSelectChapter?: (orbitNumber: number) => void
   onSelectMoon?: (moonId: string) => void
+  onCompleteMoon?: (moonId: string) => void
   renderConcept?: (moonId: string, handlers: ConceptHandlers) => ReactNode
 }
 
 const logMoon = (moonId: string) => console.log('select moon', moonId)
 
-export function MoonsScreen({ planet = MOCK_PLANET, progress: initialProgress = MOCK_PROGRESS, onSelectChapter, onSelectMoon = logMoon, renderConcept }: MoonsScreenProps) {
-  // concepts completed on the Concept page this session (until the shared progress store exists)
+export function MoonsScreen({ planet = MOCK_PLANET, progress: initialProgress = MOCK_PROGRESS, onSelectChapter, onSelectMoon = logMoon, onCompleteMoon, renderConcept }: MoonsScreenProps) {
+  // concepts completed on the Concept page this session, when no onCompleteMoon saves them
   const [justCompleted, setJustCompleted] = useState<string[]>([])
   const progress: ChapterProgress = { completed: [...new Set([...initialProgress.completed, ...justCompleted])] }
   const states = planet.orbits.map((orbit) => chapterState(orbit, planet.orbits, progress))
@@ -96,7 +98,7 @@ export function MoonsScreen({ planet = MOCK_PLANET, progress: initialProgress = 
   // opening a concept page from the panel, with the card-expands transition
   const concept = useConceptTransition({
     moons: focusedOrbit?.moons ?? [],
-    onCompleted: (id) => setJustCompleted((d) => (d.includes(id) ? d : [...d, id])),
+    onCompleted: (id) => onCompleteMoon ? onCompleteMoon(id) : setJustCompleted((d) => (d.includes(id) ? d : [...d, id])),
   })
   const { phase: conceptPhase, close: closeConcept } = concept
   function selectMoon(moonId: string, rect: DOMRect) {

@@ -3,10 +3,12 @@ import { fetchCurriculum } from './api/content'
 import { Universe } from './galaxy/Universe'
 import { useView } from './galaxy/view'
 import { HomeScreen } from './screens/Home/HomeScreen'
+import { HOME_PLANETS, type PlanetId } from './screens/Home/planets'
 import { MoonsScreen } from './screens/Moons/MoonsScreen'
 import { MOCK_PLANET } from './screens/Moons/mockPlanet'
 import type { Planet } from './screens/Moons/types'
 import ConceptScreen from './screens/Concept/ConceptScreen'
+import { useProgress } from './store/progress'
 
 /**
  * Every planet's lessons, from the backend. Until they arrive, or if the backend can't be reached, the built-in
@@ -28,6 +30,8 @@ function useCurriculum(): Planet[] {
 }
 
 const moonsOf = (planet: Planet) => planet.orbits.flatMap((orbit) => orbit.moons)
+const isPlanetId = (id: string): id is PlanetId => HOME_PLANETS.some((p) => p.id === id)
+const NONE: string[] = []
 
 // One shared 3D Universe with each screen's 2D overlay on top. Which planet/chapter the camera is on lives in
 // src/galaxy/view.ts (maps to routes later: '/', '/:planetId', '/:planetId/:moonId').
@@ -41,13 +45,23 @@ export default function App() {
   const planet = planets.find((p) => p.id === shownId) ?? planets[0]
   const moonCounts = useMemo(() => Object.fromEntries(planets.map((p) => [p.id, moonsOf(p).length])), [planets])
 
+  // progress is saved in this browser (src/store/progress.ts)
+  const systems = useProgress((s) => s.systems)
+  const captured = useProgress((s) => s.captured)
+  const completedMoons = useMemo(() => Object.fromEntries(planets.map((p) => {
+    const done = new Set(systems[p.id]?.completed)
+    return [p.id, moonsOf(p).filter((m) => done.has(m.id)).length]
+  })), [planets, systems])
+
   return (
     <div className="relative h-full overflow-hidden">
       <Universe />
-      <HomeScreen moonCounts={moonCounts} />
+      <HomeScreen moonCounts={moonCounts} completedMoons={completedMoons} captured={captured.filter(isPlanetId)} />
       <MoonsScreen
         key={planet.id}
         planet={planet}
+        progress={{ completed: systems[planet.id]?.completed ?? NONE }}
+        onCompleteMoon={(moonId) => useProgress.getState().completeMoon(planet.id, moonId)}
         renderConcept={(moonId, handlers) => <ConceptScreen planetId={planet.id} moonId={moonId} {...handlers} />}
       />
     </div>
