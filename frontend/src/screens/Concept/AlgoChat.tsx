@@ -16,6 +16,10 @@ type AlgoChatProps = {
 
 const FALLBACK = "Hmm, my signal's weak right now. Ask me again in a moment!"
 const HAPPY_MS = 1500 // how long Algo looks pleased after finishing an answer
+const WORD_MS = 30 // typewriter pace per word
+const MAX_REVEAL_MS = 7000 // long answers type faster so they never take longer than this
+const MIN_TICK_MS = 16 // shortest gap between reveals (about one frame); faster paces show several words at once
+const MIN_VOICE_MS = 800 // Algo always talks at least this long, even for a tiny or instant answer
 
 export default function AlgoChat({ planetId, moonId, onMoonLink }: AlgoChatProps) {
   const [open, setOpen] = useState(false)
@@ -24,6 +28,7 @@ export default function AlgoChat({ planetId, moonId, onMoonLink }: AlgoChatProps
   const [streaming, setStreaming] = useState(false)
   const logRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const revealRef = useRef<Typewriter | null>(null)
 
   // New moon = fresh chat
   const [chatMoon, setChatMoon] = useState(moonId)
@@ -32,7 +37,7 @@ export default function AlgoChat({ planetId, moonId, onMoonLink }: AlgoChatProps
     setMessages([])
     setStreaming(false)
   }
-  useEffect(() => () => { abortRef.current?.abort(); stopAlgoVoice() }, [moonId])
+  useEffect(() => () => { abortRef.current?.abort(); revealRef.current?.stop(); stopAlgoVoice() }, [moonId])
 
   // Algo looks happy for a moment after finishing an answer
   const [happy, setHappy] = useState(false)
@@ -61,33 +66,30 @@ export default function AlgoChat({ planetId, moonId, onMoonLink }: AlgoChatProps
     const abort = new AbortController()
     abortRef.current = abort
 
-    // Adds each piece onto the last (assistant) message; Algo's voice plays while he answers
-    let voiceStarted = false
-    const append = (piece: string) => {
-      if (!voiceStarted) { voiceStarted = true; startAlgoVoice() }
-      setMessages((prev) => {
-        const next = [...prev]
-        const last = next[next.length - 1]
-        next[next.length - 1] = { ...last, content: last.content + piece }
-        return next
-      })
-    }
+    // The answer is typed out word by word onto the last (assistant) message, however fast it arrives.
+    // Algo's voice starts with the first word and stops once the whole answer is shown.
+    const reveal = typewriter(
+      (piece) => setMessages((prev) => {
+        const last = prev[prev.length - 1]
+        if (last?.role !== 'assistant') return prev
+        return [...prev.slice(0, -1), { ...last, content: last.content + piece }]
+      }),
+      startAlgoVoice,
+      () => { stopAlgoVoice(); setStreaming(false); celebrate() },
+    )
+    revealRef.current = reveal
 
-    let answered = false
     try {
-      await streamTutor({ system: planetId, moon_id: moonId, messages: history }, append, abort.signal)
-      answered = true
+      await streamTutor({ system: planetId, moon_id: moonId, messages: history }, reveal.push, abort.signal)
+      if (!abort.signal.aborted) reveal.end()
     } catch (e) {
+      reveal.stop()
       if (abort.signal.aborted) return
       // the backend's own explanation (e.g. today's limit is reached) if it gave one
       const reply = e instanceof TutorError ? e.message : FALLBACK
       setMessages((prev) => [...prev.slice(0, -1), { role: 'assistant', content: reply }])
-    } finally {
-      if (!abort.signal.aborted) {
-        stopAlgoVoice()
-        setStreaming(false)
-        if (answered) celebrate()
-      }
+      stopAlgoVoice()
+      setStreaming(false)
     }
   }
 
@@ -95,6 +97,7 @@ export default function AlgoChat({ planetId, moonId, onMoonLink }: AlgoChatProps
     playAlgoClick()
     if (open) {
       abortRef.current?.abort()
+      revealRef.current?.stop()
       stopAlgoVoice()
       setStreaming(false)
     }
@@ -183,4 +186,65 @@ function MessageText({ text, onMoonLink }: { text: string; onMoonLink?: (id: str
       )}
     </>
   )
+}
+
+type Typewriter = { push: (text: string) => void; end: () => void; stop: () => void }
+
+/**
+ * Shows streamed text word by word at a natural pace, whether it arrives all at once or bit by bit.
+ * show gets each new piece, onStart runs with the first word, and onDone once the stream has ended and
+ * everything is shown. With reduced motion on, text is shown as soon as it arrives.
+ */
+function typewriter(show: (piece: string) => void, onStart: () => void, onDone: () => void): Typewriter {
+  const instant = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  let pending = '' // arrived but not shown yet
+  let shownWords = 0
+  let ended = false
+  let stopped = false
+  let startedAt = 0 // when the first word was shown
+  let nextAt = 0 // earliest time for the next word
+  let timer: ReturnType<typeof setTimeout> | undefined
+
+  // A word is ready once whitespace follows it (otherwise it may still be arriving), or the stream has ended
+  const ready = () => (ended ? /\S/.test(pending) : /^\s*\S+\s/.test(pending))
+
+  function schedule() {
+    if (stopped || timer !== undefined) return
+    timer = setTimeout(tick, Math.max(0, nextAt - Date.now()))
+  }
+
+  function tick() {
+    timer = undefined
+    // Long answers type faster, so the whole answer takes at most MAX_REVEAL_MS
+    const total = shownWords + pending.split(/\s+/).filter(Boolean).length
+    const msPerWord = Math.min(WORD_MS, MAX_REVEAL_MS / Math.max(total, 1))
+    const gap = Math.max(MIN_TICK_MS, msPerWord)
+    let count = instant ? Infinity : Math.round(gap / msPerWord)
+
+    let piece = ''
+    while (count > 0 && ready()) {
+      const word = /^\s*\S+/.exec(pending)?.[0]
+      if (!word) break
+      piece += word
+      pending = pending.slice(word.length)
+      shownWords++
+      count--
+    }
+    if (ended && !/\S/.test(pending)) { piece += pending; pending = '' }
+
+    if (piece) {
+      if (!startedAt) { startedAt = Date.now(); onStart() }
+      show(piece)
+      nextAt = Date.now() + gap
+    }
+    if (ready()) schedule()
+    // All shown and the stream is over: finish (after Algo has talked for at least a moment)
+    else if (ended) timer = setTimeout(onDone, Math.max(0, startedAt + MIN_VOICE_MS - Date.now()))
+  }
+
+  return {
+    push(text) { pending += text; if (ready()) schedule() },
+    end() { ended = true; schedule() },
+    stop() { stopped = true; clearTimeout(timer) },
+  }
 }
