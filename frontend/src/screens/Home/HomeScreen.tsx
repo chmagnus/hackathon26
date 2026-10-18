@@ -138,7 +138,8 @@ export function HomeScreen(props: HomeScreenProps) {
         </button>
       </div>
 
-      <div className="pointer-events-auto absolute right-4 top-4 rounded-2xl border border-white/15 bg-glass px-4 py-2.5 font-display text-lg font-extrabold tracking-[.08em] backdrop-blur max-sm:hidden">
+      {/* a bit smaller below 860px so it stays clear of the user chip */}
+      <div className="pointer-events-auto absolute right-4 top-4 rounded-2xl border border-white/15 bg-glass px-[22px] py-3.5 font-display text-[25px] leading-[39px] font-extrabold tracking-[.08em] backdrop-blur max-[860px]:px-[18px] max-[860px]:py-3 max-[860px]:text-xl max-[860px]:leading-8 max-sm:hidden">
         NOVA
       </div>
 
