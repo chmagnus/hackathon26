@@ -132,7 +132,7 @@ export default function AlgoChat({ planetId, moonId, onMoonLink }: AlgoChatProps
             {messages.map((m, i) => (
               <div
                 key={i}
-                className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 text-[14.5px] leading-relaxed ${
+                className={`max-w-[88%] whitespace-pre-line rounded-2xl px-3.5 py-2.5 text-[14.5px] leading-relaxed ${
                   m.role === 'user' ? 'self-end rounded-br-sm bg-sky/20' : 'self-start rounded-bl-sm border border-white/10 bg-white/5'
                 }`}
               >
