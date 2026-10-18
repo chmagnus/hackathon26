@@ -13,25 +13,32 @@ import { useEffect, useState, type ComponentType } from 'react'
 import { fetchMoon, type Moon } from './moonApi'
 import type { LessonProps } from './StoryLayout'
 import GenericLesson from './lessons/GenericLesson'
-import HashingLesson from './lessons/HashingLesson'
+import HashStory from './lessons/HashStory'
+import LongestChainStory from './lessons/LongestChainStory'
+import ProofOfWorkStory from './lessons/ProofOfWorkStory'
 import SharedLedgerStory from './lessons/SharedLedgerStory'
 import SignaturesStory from './lessons/SignaturesStory'
 
 /** Moons with their own interactive scene. Anything else uses GenericLesson. */
 const LESSONS: Record<string, ComponentType<LessonProps>> = {
   ledgers: SharedLedgerStory, // the prototype's Story Scroll
-  hashing: HashingLesson,
-  'digital-signatures': SignaturesStory, // ported from the prototype like ledgers
+  hashing: HashStory, // the rest are ported from the prototype like ledgers
+  'digital-signatures': SignaturesStory,
+  'proof-of-work': ProofOfWorkStory,
+  'forks-and-longest-chain': LongestChainStory,
 }
 
 /**
  * Story lessons ported whole from the prototype carry their own text, so they still open when the backend
- * has no data for the moon (or is down). They only need these few details.
- * Lessons that read their story from the backend (like hashing) don't belong here.
+ * has no data for the moon (or is down). They only need these few details (order = place in its orbit).
+ * Lessons that read their story from the backend don't belong here.
  */
 const STANDALONE: Record<string, { title: string; order: number }> = {
   ledgers: { title: 'A shared ledger', order: 1 },
+  hashing: { title: 'Hashing', order: 2 },
   'digital-signatures': { title: 'Digital signatures', order: 4 },
+  'proof-of-work': { title: 'Proof of work', order: 3 },
+  'forks-and-longest-chain': { title: 'Forks and chain selection', order: 2 },
 }
 
 /** A stand-in moon with just the basics, for a standalone lesson the backend doesn't know about */

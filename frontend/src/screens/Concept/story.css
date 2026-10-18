@@ -118,6 +118,103 @@
 .nv .snav{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:10px}
 .nv .snav span{font-family:var(--f-mono);font-size:12px;color:var(--muted);min-width:9ch;text-align:center}
 
+/* Hash, proof-of-work and longest-chain lessons: the fingerprint ring, blocks, races and chain lanes */
+.nv .hx .z{color:var(--mint);font-weight:700} .nv .hx .x{color:var(--coral);font-weight:700} .nv .hx .d{color:var(--gold);font-weight:700}
+.nv .fp .ring{position:absolute;left:50%;top:45%;width:0;height:0}
+.nv .fp .ring i{position:absolute;left:-2.5px;bottom:0;width:5px;height:calc(8px + var(--v,0) * 2.6px);border-radius:3px;background:var(--sky);opacity:calc(.35 + var(--v,0) * .04);transform-origin:50% 100%;transform:rotate(var(--r)) translateY(-80px);transition:height .35s,background .3s,opacity .3s}
+.nv .fp .ring i.z{background:var(--mint);opacity:1}
+.nv .fp .ring i.x{background:var(--coral);opacity:1}
+.nv .fp .ring i.d{background:var(--gold);opacity:1}
+.nv .fp .core{position:absolute;left:50%;top:45%;transform:translate(-50%,-50%);width:146px;height:146px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:14px;text-align:center;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.2),rgba(124,196,255,.1) 55%,rgba(5,8,18,.92));box-shadow:0 0 40px rgba(124,196,255,.16)}
+.nv .fp .core b{font-family:var(--f-display);font-size:15px;letter-spacing:.03em;line-height:1.25}
+.nv .fp .core span{font-size:12px;color:var(--soft);line-height:1.3}
+.nv .fp .core.ok b{color:var(--mint)} .nv .fp .core.bad b{color:var(--coral)}
+.nv .fp .fph{position:absolute;left:14px;right:14px;bottom:12px;font-family:var(--f-mono);font-size:11.5px;line-height:1.45;text-align:center;word-break:break-all;color:var(--muted)}
+.nv .fp .cover{position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;justify-content:center;gap:14px;padding:18px;background:#070b18;animation:nv-fade .3s}
+.nv .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 12px}
+.nv .pay .row{margin:0}
+.nv .bign{font-family:var(--f-display);font-size:26px;font-weight:800;color:var(--gold)}
+.nv .btn.on{border-color:var(--mint);color:var(--mint)}
+.nv .chain{display:flex;align-items:center;gap:6px}
+.nv .chain .arr{flex:none;color:var(--muted)}
+.nv .blk{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;border-radius:12px;border:1px solid var(--edge);background:rgba(255,255,255,.04);padding:8px 9px;font-size:12.5px;transition:border-color .3s,background .3s}
+.nv .blk.ok{border-color:rgba(111,242,197,.6)}
+.nv .blk.bad{border-color:rgba(255,123,114,.75);background:rgba(255,123,114,.08)}
+.nv .blk.busy{border-color:rgba(255,207,90,.7)}
+.nv .blk .bt{display:flex;justify-content:space-between;gap:6px;font-weight:800;margin-bottom:2px}
+.nv .blk .st{font-size:10.5px;border-radius:999px;padding:0 6px;white-space:nowrap}
+.nv .blk.ok .st{color:var(--mint);background:rgba(111,242,197,.12)} .nv .blk.bad .st{color:var(--coral);background:rgba(255,123,114,.12)} .nv .blk.busy .st{color:var(--gold);background:rgba(255,207,90,.12)}
+.nv .blk .bd{color:var(--soft);overflow-wrap:anywhere;margin-bottom:2px}
+.nv .blk .lbl{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.nv .blk .mono{font-size:11px}
+.nv .race{display:flex;flex-direction:column;gap:14px}
+.nv .rl{display:grid;grid-template-columns:auto minmax(0,1fr) 7ch;gap:10px;align-items:center}
+.nv .rl .av{width:40px;height:40px;font-size:16px;transition:box-shadow .3s}
+.nv .rl.win .av{box-shadow:0 0 0 3px var(--ink),0 0 26px var(--c)}
+.nv .rl .bar{height:10px;border-radius:5px;background:rgba(255,255,255,.07);overflow:hidden}
+.nv .rl .bar i{display:block;height:100%;width:0;background:var(--c);transition:width .15s}
+.nv .rl .n{font-family:var(--f-mono);font-size:12px;color:var(--muted);text-align:right}
+.nv .scene.ls{display:flex;flex-direction:column;justify-content:center;gap:18px;padding:20px}
+.nv .lanes{display:flex;flex-direction:column;gap:16px}
+.nv .lane{display:flex;flex-direction:column;gap:6px}
+.nv .lane .lh{display:flex;justify-content:space-between;gap:8px;font-size:13px;font-weight:800}
+.nv .lane .tag{font-style:normal;font-size:12px;color:var(--muted)}
+.nv .lane .tag.ok{color:var(--mint)} .nv .lane .tag.bad{color:var(--coral)}
+.nv .cubes{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-height:26px}
+.nv .cube{position:relative;width:24px;height:24px;border-radius:6px;background:var(--c,var(--mint));box-shadow:0 0 10px rgba(111,242,197,.25)}
+.nv .cube+.cube::before{content:"";position:absolute;right:100%;top:50%;width:8px;height:2px;background:var(--muted);opacity:.5}
+.nv .cube.sh{--c:#56607e;box-shadow:none}
+.nv .cube.pay{outline:2px solid var(--gold);outline-offset:2px}
+.nv .cube.new{animation:nv-drop .45s}
+.nv .lnote{text-align:center;font-size:13.5px;color:var(--soft);margin:0}
+.nv input[type=range]{width:100%;max-width:320px;accent-color:var(--gold)}
+.nv .vbars{display:flex;flex-direction:column;gap:6px;max-width:62ch;margin:4px 0 12px}
+.nv .vb{display:grid;grid-template-columns:10ch minmax(0,1fr) 9ch;gap:10px;align-items:center;font-size:13.5px;color:var(--soft);border-radius:8px;padding:2px 4px}
+.nv .vb.on{color:var(--ink);font-weight:700;background:rgba(255,255,255,.05)}
+.nv .vb .bar{height:10px;border-radius:5px;background:rgba(255,255,255,.07);overflow:hidden}
+.nv .vb .bar i{display:block;height:100%;background:var(--coral)}
+.nv .vb .n{font-family:var(--f-mono);font-size:12.5px;text-align:right}
+
+/* Generic lesson scenes (storyKit's mountScene inside StoryLayout's stage): the picture, then a bar of controls */
+.nv.gscene{position:absolute;inset:0;display:flex;flex-direction:column;font-size:14px;line-height:1.45}
+.nv.gscene .gvis{position:relative;flex:1;min-height:0}
+.nv.gscene .gvis>.scene{height:100%;border:0;border-radius:0;background:none}
+.nv.gscene .gbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px 12px;border-top:1px solid var(--edge);background:rgba(5,8,18,.6)}
+.nv.gscene .gbar .hint{flex-basis:100%;font-size:12.5px;color:var(--soft)}
+.nv.gscene .gbar .down{font-size:12.5px}
+.nv.gscene .gbar input.txt{flex:1 1 140px;font-size:14px;padding:5px 8px}
+.nv.gscene .gbar select{flex:none;font-size:13px;padding:4px 6px}
+.nv.gscene .gbar .btn.sm{font-size:12.5px;padding:5px 10px}
+.nv.gscene .gbar input[type=range]{flex:1 1 100px;max-width:180px}
+.nv.gscene .gbar .fb{flex-basis:100%;font-size:13px}
+.nv.gscene .fp .ring{transform:scale(.85)}
+.nv.gscene .fp .core{transform:translate(-50%,-50%) scale(.85)}
+.nv .scene.cv{display:flex;flex-direction:column;justify-content:center;gap:12px;padding:16px}
+.nv .stk .rl{grid-template-columns:auto minmax(0,1fr) 11ch}
+.nv .rl.cut .av{filter:grayscale(.8)} .nv .rl.cut .n{color:var(--coral)}
+.nv .mk svg{position:absolute;inset:0;width:100%;height:100%}
+.nv .mk line{stroke:rgba(140,170,255,.3);stroke-width:2;vector-effect:non-scaling-stroke;transition:stroke .3s}
+.nv .mk line.ch{stroke:var(--coral)} .nv .mk line.pt{stroke:var(--mint)}
+.nv .mk .nd{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;padding:3px 9px;border-radius:9px;border:1px solid var(--edge);background:#0b1124;font-size:11px;white-space:nowrap;transition:border-color .3s,background .3s}
+.nv .mk .nd .mono{font-size:10.5px;color:var(--soft)}
+.nv .mk .nd.ch{border-color:var(--coral);background:#2a1014} .nv .mk .nd.ch .mono{color:var(--coral)}
+.nv .mk .nd.pt{border-color:var(--mint)} .nv .mk .nd.pf{border-color:var(--gold);background:rgba(255,207,90,.1)}
+.nv .mk .leaf{position:absolute;top:84%;transform:translate(-50%,-50%);width:23%;font:inherit;font-size:11.5px;text-align:center;background:rgba(255,255,255,.06);border:1px solid var(--edge);color:var(--ink);border-radius:8px;padding:5px 4px}
+.nv .mk .leaf:focus{outline:none;border-color:var(--mint)}
+.nv .mk .leaf.ch{border-color:var(--coral);color:var(--coral)}
+@media (max-width:1023px){
+  .nv.gscene .gbar .hint{display:none}
+  .nv.gscene .fp .ring{transform:scale(.5)}
+  .nv.gscene .fp .core{transform:translate(-50%,-50%) scale(.5)}
+  .nv.gscene .fp .fph{display:none}
+  .nv.gscene .scene.cv,.nv.gscene .scene.ls{padding:8px 12px;gap:8px}
+  .nv.gscene .lnote{font-size:12px}
+  .nv.gscene .blk{font-size:11px;padding:5px 6px}
+  .nv.gscene .blk .lbl{display:none}
+}
+
 @keyframes nv-glow{0%{transform:scale(1.35);box-shadow:0 0 18px currentColor}100%{transform:none;box-shadow:0 0 0 transparent}}
 @keyframes nv-pop{from{background:rgba(255,207,90,.25)}}
+@keyframes nv-fade{from{opacity:0}}
+@keyframes nv-drop{from{transform:translateY(-14px) scale(.6);opacity:0}}
 @keyframes nv-shake{20%,60%{transform:translate(calc(-50% - 6px),-50%)}40%,80%{transform:translate(calc(-50% + 6px),-50%)}}

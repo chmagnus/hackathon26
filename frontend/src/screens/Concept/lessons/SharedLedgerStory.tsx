@@ -15,7 +15,7 @@ const QUICK_ANSWERS: [string, string][] = [
   ['Why not just use cash?', "You could! But swapping cash after every pizza gets annoying. Writing it down means you only pay once a month, and it's the first step towards money that's completely digital."],
   ['What does settling up mean?', "It's when everyone adds up what they paid and what they received. Paid out more? You put the difference in a pot. Received more? You take it out. Then everyone's even."],
   ['Why does everyone start with 100?', "So nobody can spend money they don't have. If Charlie only has 20 left on the ledger, a payment of 40 gets rejected. That's what turns the list itself into money."],
-  ["Can't Bob just cheat?", 'Right now, yes! Nothing proves Alice agreed to a line Bob writes. That\'s exactly what Moon 2 fixes with digital signatures.'],
+  ["Can't Bob just cheat?", 'Right now, yes! Nothing proves Alice agreed to a line Bob writes. That\'s what digital signatures fix, a few moons from now. First, the next moon gives us fingerprints for data: hashing.'],
 ]
 
 export default function SharedLedgerStory({ planetId, moon, onBack, onComplete }: LessonProps) {
@@ -48,7 +48,7 @@ export default function SharedLedgerStory({ planetId, moon, onBack, onComplete }
       { h: 'Anyone can add a line', b: `<p>The ledger lives somewhere everyone can see, like a shared web page. <b>Anyone can add a line.</b> Add one yourself:</p><div class="inl">${selP('i1f', 'Charlie')} pays ${selP('i1t', 'Alice')} <select id="i1a" aria-label="Amount"><option>5</option><option selected>10</option><option>30</option></select><button class="btn gold sm" id="i1add">Add line</button></div>` },
       { h: 'Settle up at the end of the month', b: `<p>Once a month they <b>settle up</b>. Everyone adds up what they paid out and what they received.</p><p>Paid out more than you got? You put the difference <b>into a pot</b>. Got more? You <b>take it out</b>. Then everyone's even.</p><button class="btn gold" id="i1settle">Settle up the month</button><div id="i1sq" style="margin-top:14px"></div>` },
       { h: 'Make the list the money', b: `<p>What if Charlie racks up a huge debt and never shows up? New rules: <b>everyone starts with 100</b> on the ledger, and <b>you can't spend more than you have</b>.</p><p>Charlie has already paid out 80, so he has 20 left. Try it:</p><div class="inl">Charlie pays Bob <select id="i1c" aria-label="Amount"><option>10</option><option>20</option><option selected>40</option></select><button class="btn gold sm" id="i1try">Try payment</button></div><p class="fb" id="i1cr" hidden></p><div class="kbox"><b>Key idea</b><span>Now the list itself is the money. To check any payment, you need the whole history.</span></div>` },
-      { h: 'The hole in our plan', b: `<p>There's still a big problem. The ledger is public, so what stops <b>Bob</b> from writing <b>“Alice pays Bob 100”</b> without asking her?</p><button class="btn danger" id="i1forge">Let Bob sneak a line in</button><div id="i1q" style="margin-top:16px"></div><div class="donebar" id="i1done" hidden><button class="btn go" id="i1complete">Complete moon 1</button><span class="down">Next up: digital signatures.</span></div>` },
+      { h: 'The hole in our plan', b: `<p>There's still a big problem. The ledger is public, so what stops <b>Bob</b> from writing <b>“Alice pays Bob 100”</b> without asking her?</p><button class="btn danger" id="i1forge">Let Bob sneak a line in</button><div id="i1q" style="margin-top:16px"></div><div class="donebar" id="i1done" hidden><button class="btn go" id="i1complete">Complete moon 1</button><span class="down">Next up: hashing.</span></div>` },
     ]
     main.innerHTML = `<div class="i1"><div class="i1-story"><div class="prog1"><i id="i1p"></i></div>${SEC.map((s, i) => `<section class="sec" data-k="${i}"><span class="secn">Part ${i + 1} of ${SEC.length}</span><h2>${s.h}</h2>${s.b}</section>`).join('')}</div>
       <div class="i1-stage"><div id="i1scene"></div><p class="i1-cap" id="i1cap"></p></div></div>`
@@ -121,7 +121,7 @@ export default function SharedLedgerStory({ planetId, moon, onBack, onComplete }
       setTimeout(() => alive && sc.say('Alice', 'I never agreed to that!', 2600), 900)
       algoSay('Uh-oh. Nothing in our system stopped Bob!')
       quiz($('i1q'), "What's missing from our system?", [
-        ['A way to prove Alice really agreed to a payment', true, "Exactly. That's what digital signatures do, and it's the next moon."],
+        ['A way to prove Alice really agreed to a payment', true, "Exactly. That's what digital signatures do. We'll build them in a few moons, starting with hashing next."],
         ['A bigger ledger', false, "Size isn't the problem. Bob could still write fake lines."],
         ['More friends', false, 'More people would just mean more people who could cheat.'],
       ], () => { $('i1done').hidden = false })
