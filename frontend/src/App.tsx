@@ -53,15 +53,33 @@ export default function App() {
     return [p.id, moonsOf(p).filter((m) => done.has(m.id)).length]
   })), [planets, systems])
 
+  // A planet finished on this visit joins your orbit once you're back in the universe, so you see it pulled in.
+  const [arriving, setArriving] = useState<string | null>(null)
+  if (arriving && view.mode === 'universe') setArriving(null)
+
+  function completeMoon(moonId: string) {
+    const progress = useProgress.getState()
+    progress.completeMoon(planet.id, moonId)
+    const done = new Set(useProgress.getState().systems[planet.id]?.completed)
+    if (!captured.includes(planet.id) && moonsOf(planet).every((m) => done.has(m.id))) {
+      progress.capturePlanet(planet.id)
+      setArriving(planet.id)
+    }
+  }
+
   return (
     <div className="relative h-full overflow-hidden">
       <Universe />
-      <HomeScreen moonCounts={moonCounts} completedMoons={completedMoons} captured={captured.filter(isPlanetId)} />
+      <HomeScreen
+        moonCounts={moonCounts}
+        completedMoons={completedMoons}
+        captured={captured.filter((id): id is PlanetId => isPlanetId(id) && id !== arriving)}
+      />
       <MoonsScreen
         key={planet.id}
         planet={planet}
         progress={{ completed: systems[planet.id]?.completed ?? NONE }}
-        onCompleteMoon={(moonId) => useProgress.getState().completeMoon(planet.id, moonId)}
+        onCompleteMoon={completeMoon}
         renderConcept={(moonId, handlers) => <ConceptScreen planetId={planet.id} moonId={moonId} {...handlers} />}
       />
     </div>
