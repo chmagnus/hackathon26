@@ -78,7 +78,7 @@ export default function App() {
       <MoonsScreen
         key={planet.id}
         planet={planet}
-        progress={{ completed: systems[planet.id]?.completed ?? NONE }}
+        progress={{ completed: systems[planet.id]?.completed ?? NONE, edits: systems[planet.id]?.edits }}
         onCompleteMoon={completeMoon}
         renderConcept={(moonId, handlers) => <ConceptScreen planetId={planet.id} moonId={moonId} {...handlers} />}
       />

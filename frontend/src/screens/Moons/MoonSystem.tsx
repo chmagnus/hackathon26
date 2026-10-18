@@ -23,6 +23,8 @@ import type { Planet } from './types'
 
 const SKY = new THREE.Color('#7cc4ff')
 const MINT = new THREE.Color('#6ff2c5')
+/** a chapter whose lessons no longer match the hash chain, whatever its state */
+const CORAL = new THREE.Color('#ff7b72')
 
 /** Moon colour for each chapter state (the prototype's mint / gold / dim). */
 const STATE_COLOR: Record<ChapterState, THREE.Color> = {
@@ -79,8 +81,10 @@ function OrbitLine() {
  * The colour eases towards the state's colour; the current chapter pulses (as in the prototype's drawMoons).
  * Publishes its world position in chapterPositions so the camera can fly to it.
  */
-function ChapterMoon({ index, count, orbitNumber, title, state, active, orbitClock, onSelect }: {
+function ChapterMoon({ index, count, orbitNumber, title, state, broken, active, orbitClock, onSelect }: {
   index: number; count: number; orbitNumber: number; title: string; state: ChapterState
+  /** a lesson in this chapter no longer matches the hash chain */
+  broken: boolean
   /** zoomed in on this planet: label shown and clickable */
   active: boolean
   orbitClock: OrbitClock
@@ -111,8 +115,9 @@ function ChapterMoon({ index, count, orbitNumber, title, state, active, orbitClo
     g.getWorldPosition(chapterPositions[orbitNumber] ??= new THREE.Vector3())
     if (body.current) body.current.rotation.y += dt * 0.3
 
-    col.lerp(STATE_COLOR[state], Math.min(1, dt * 4))
-    const isCurrent = state === 'current', isLocked = state === 'locked'
+    col.lerp(broken ? CORAL : STATE_COLOR[state], Math.min(1, dt * 4))
+    // a broken chapter glows even when locked, so the break is visible all the way round
+    const isCurrent = state === 'current', isLocked = state === 'locked' && !broken
     const pulse = isCurrent ? 0.3 + 0.3 * Math.sin(t * 3) : 0
     const lift = hovered.current && clickable ? 0.25 : 0
     m.emissive.copy(col)
@@ -154,7 +159,7 @@ function ChapterMoon({ index, count, orbitNumber, title, state, active, orbitClo
       {/* always mounted (unmounting drei <Html> mid-frame can crash); faded out while the moons are hidden; below the HUD (z-20) */}
       <Html portal={universeLabelRoot} position={[0, 1.6, 0]} zIndexRange={[10, 0]}
         style={{ pointerEvents: 'none', opacity: active ? 1 : 0, transition: 'opacity .3s' }}>
-        <ChapterLabel number={orbitNumber} title={title} state={state} />
+        <ChapterLabel number={orbitNumber} title={title} state={state} broken={broken} />
       </Html>
     </group>
   )
@@ -191,10 +196,12 @@ export interface MoonSystemProps {
   planet: Planet
   /** one state per orbit, in the same order as planet.orbits */
   states: ChapterState[]
+  /** per orbit, like states: true when a lesson in it no longer matches the hash chain */
+  broken?: boolean[]
   onSelectChapter: (orbitNumber: number) => void
 }
 
-export function MoonSystem({ planet, states, onSelectChapter }: MoonSystemProps) {
+export function MoonSystem({ planet, states, broken, onSelectChapter }: MoonSystemProps) {
   // the moon data's planet id matches Home's planet ids ('blockchain')
   const planetId = planet.id as PlanetId
   const planetRadius = HOME_PLANETS.find((p) => p.id === planetId)?.radius ?? 2.6
@@ -236,6 +243,7 @@ export function MoonSystem({ planet, states, onSelectChapter }: MoonSystemProps)
               orbitNumber={orbit.number}
               title={orbit.title}
               state={states[i]}
+              broken={!!broken?.[i]}
               active={active}
               orbitClock={orbitClock}
               onSelect={onSelectChapter}

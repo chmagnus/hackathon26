@@ -23,6 +23,7 @@ import { ChapterPanel } from './ChapterPanel'
 import { chapterState, type ChapterProgress } from './chapters'
 import { ConceptLayer } from './ConceptLayer'
 import { useConceptTransition, type ConceptHandlers } from './useConceptTransition'
+import { useChainCheck } from './useChainCheck'
 import { MoonSystem } from './MoonSystem'
 import { MoonsHud } from './MoonsHud'
 import { MOCK_PLANET } from './mockPlanet'
@@ -30,6 +31,7 @@ import { MOCK_PROGRESS } from './mockProgress'
 import type { Planet } from './types'
 
 const TOAST_MS = 4000
+const NO_EDITS: Record<string, string> = {}
 
 export interface MoonsScreenProps {
   planet?: Planet
@@ -47,6 +49,11 @@ export function MoonsScreen({ planet = MOCK_PLANET, progress: initialProgress = 
   const [justCompleted, setJustCompleted] = useState<string[]>([])
   const progress: ChapterProgress = { completed: [...new Set([...initialProgress.completed, ...justCompleted])] }
   const states = planet.orbits.map((orbit) => chapterState(orbit, planet.orbits, progress))
+
+  // chapters holding a lesson that no longer matches the hash chain. An edit breaks every lesson after it too.
+  const chain = useChainCheck(planet, initialProgress.edits ?? NO_EDITS)
+  const brokenIds = new Set(chain.result?.moons.filter((m) => !m.valid).map((m) => m.id))
+  const broken = planet.orbits.map((orbit) => orbit.moons.some((m) => brokenIds.has(m.id)))
 
   const view = useView((s) => s.view)
   const zoomedIn = useView((s) => s.zoomedIn)
@@ -124,7 +131,7 @@ export function MoonsScreen({ planet = MOCK_PLANET, progress: initialProgress = 
   return (
     <>
       <InUniverse>
-        <MoonSystem planet={planet} states={states} onSelectChapter={selectChapter} />
+        <MoonSystem planet={planet} states={states} broken={broken} onSelectChapter={selectChapter} />
       </InUniverse>
 
       {/* overlay on top of the Universe canvas: lets the pointer through, except on its own panels and buttons */}
