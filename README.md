@@ -141,3 +141,28 @@ from the same domain, or route `/api/*` to the API Worker. While developing
 without the backend, the chat answers with a fake Algo; a deployed build shows
 an error message instead.
 
+
+## Credits
+
+All textures are in `frontend/public/textures/` as WebP, each in two sizes:
+`*_2k.webp` (2048 wide) and `*_1k.webp` (1024 wide, used on screens narrower
+than 860px). NASA imagery is in the public domain. Solar System Scope textures
+are licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), so they
+must stay credited. Every image was resized, and some were adjusted as noted.
+
+| Texture | Used for | Source | Licence |
+| --- | --- | --- | --- |
+| `earth_day` | Blockchain (Earth) | [Blue Marble: Next Generation, December, with topography and bathymetry](https://visibleearth.nasa.gov/images/73909) (NASA Earth Observatory, Reto Stöckli) | Public domain (NASA) |
+| `earth_night` | Blockchain (Earth) | [Earth at Night: Black Marble 2016](https://visibleearth.nasa.gov/images/144898) (NASA Earth Observatory, Joshua Stevens, with Suomi NPP VIIRS data from Miguel Román, NASA GSFC). Only the city lights are kept, tinted warm. | Public domain (NASA) |
+| `earth_clouds` | Blockchain (Earth) | [Blue Marble clouds](https://visibleearth.nasa.gov/images/57747) (NASA Goddard Space Flight Center, MODIS). Cloud brightness is stored as alpha. | Public domain (NASA) |
+| `earth_normal` | Blockchain (Earth) | Normal map computed from [Blue Marble: Next Generation topography](https://visibleearth.nasa.gov/images/73934) (NASA Earth Observatory, GEBCO data) | Public domain (NASA) |
+| `earth_ocean_mask` | Blockchain (Earth) | Water mask: sea level in the topography above, plus the lakes in [Blue Marble: Next Generation, December, without bathymetry](https://visibleearth.nasa.gov/images/74218) | Public domain (NASA) |
+| `ring` | Blockchain's ring | [Saturn ring alpha map](https://www.solarsystemscope.com/textures/) by Solar System Scope. Colours brightened. | CC BY 4.0 |
+| `neptune` | Dijkstra & OSPF | [Neptune map](https://www.solarsystemscope.com/textures/) by Solar System Scope, based on NASA Voyager 2 imagery | CC BY 4.0 |
+| `jupiter` | Sorting | [PIA07782: Cassini global map of Jupiter](https://science.nasa.gov/photojournal/) (NASA/JPL/Space Science Institute) | Public domain (NASA) |
+| `mars` | Binary search | Viking MDIM 2.1 colour mosaic, from [NASA Mars Trek](https://trek.nasa.gov/mars/) (NASA/USGS) | Public domain (NASA) |
+| `mars_normal` | Binary search | Normal map computed from the MGS MOLA elevation model, from [NASA Mars Trek](https://trek.nasa.gov/mars/) (NASA/JPL/GSFC) | Public domain (NASA) |
+| `moon`, `moon_normal` | Chapter moons | [CGI Moon Kit](https://svs.gsfc.nasa.gov/4720) (NASA Goddard Scientific Visualization Studio, Ernie Wright): LRO LROC colour map, and a normal map computed from the LOLA elevation map | Public domain (NASA) |
+
+The star at the centre and the starfield have no textures: they are drawn by
+shaders (`frontend/src/screens/Home/sunShaders.ts` and `Sky.tsx`).

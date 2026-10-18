@@ -22,10 +22,13 @@ export function chapterAngle(index: number, count: number, time: number): number
   return -Math.PI / 2 + (index / count) * Math.PI * 2 + spin
 }
 
-/** Position of chapter `index` in the ring's own (untilted, unscaled) space, with a gentle bob. `time` is in seconds. */
-export function chapterPosition(index: number, count: number, time: number): [number, number, number] {
+/**
+ * Position of chapter `index` in the ring's own (untilted, unscaled) space, with a gentle bob. `time` is in seconds.
+ * Written into `out` (e.g. a Vector3) and returned, so calling it every frame allocates nothing.
+ */
+export function chapterPosition<T extends { set(x: number, y: number, z: number): T }>(index: number, count: number, time: number, out: T): T {
   const a = chapterAngle(index, count, time)
-  return [Math.cos(a) * MOON_ORBIT_RADIUS, Math.sin(time * 0.7 + index) * 0.25, Math.sin(a) * MOON_ORBIT_RADIUS]
+  return out.set(Math.cos(a) * MOON_ORBIT_RADIUS, Math.sin(time * 0.7 + index) * 0.25, Math.sin(a) * MOON_ORBIT_RADIUS)
 }
 
 /** Angle halfway between chapter `index` and the next one: where the arrow between them sits. */
