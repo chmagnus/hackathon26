@@ -7,6 +7,7 @@
 import { Canvas } from '@react-three/fiber'
 import { Bloom, EffectComposer, ToneMapping } from '@react-three/postprocessing'
 import { ToneMappingMode } from 'postprocessing'
+import { FillLight } from '../screens/Home/FillLight'
 import { Sky } from '../screens/Home/Sky'
 import { Star } from '../screens/Home/Star'
 import { CameraRig } from './CameraRig'
@@ -23,8 +24,8 @@ export function Universe() {
           gl.domElement.addEventListener('webglcontextlost', (e) => e.preventDefault())
         }}>
         <color attach="background" args={['#03040a']} />
-        {/* low ambient light keeps each planet's night side properly dark */}
-        <ambientLight color="#404a70" intensity={0.15} />
+        {/* soft cool fill: night sides stay dark blue-grey rather than black (src/screens/Home/lighting.ts) */}
+        <FillLight />
         <Sky />
         <Star />
         <CameraRig />

@@ -1,40 +1,41 @@
-import { useEffect, useMemo, useRef } from 'react'
-import { useFrame, type ThreeEvent } from '@react-three/fiber'
+import { Suspense, useEffect, useMemo } from 'react'
+import type { ThreeEvent } from '@react-three/fiber'
+import { useTexture } from '@react-three/drei'
 import * as THREE from 'three'
 import type { HomePlanet } from './planets'
-import { ATMO_FRAG, PLANET_FRAG, PLANET_VERT } from './shaders'
-import { ringTexture } from './textures'
+import { EarthBody } from './EarthBody'
+import { PLANET_LOOKS } from './planetLooks'
+import { ringMaterial } from './ringMaterial'
+import { prepareTexture, textureUrl } from './textureSet'
+import { TexturedPlanet } from './TexturedPlanet'
+import { TextureLoadingOverlay } from './TextureLoadingOverlay'
 
-const STAR = new THREE.Vector3(0, 0, 0)
-
-/** One procedurally shaded planet (surface + glowing atmosphere + optional ring), lit by the star. */
+/**
+ * One planet lit by the star, with its optional ring. Each algorithm-planet looks like a real one, from NASA imagery
+ * where it exists: Blockchain is the Earth (EarthBody), the others Neptune, Jupiter and Mars (planetLooks.ts).
+ * Suspends while the textures load (the shared loading overlay covers it).
+ */
 export function PlanetBody({ planet, onClick }: { planet: HomePlanet; onClick?: (e: ThreeEvent<MouseEvent>) => void }) {
-  const surface = useRef<THREE.Mesh>(null)
-  const { shade, radius } = planet
+  return (
+    <group>
+      <Suspense fallback={<TextureLoadingOverlay />}>
+        {planet.id === 'blockchain'
+          ? <EarthBody radius={planet.radius} onClick={onClick} />
+          : <TexturedPlanet look={PLANET_LOOKS[planet.id]} radius={planet.radius} onClick={onClick} />}
+        {planet.ring && <PlanetRing radius={planet.radius} />}
+      </Suspense>
+    </group>
+  )
+}
 
-  const surfaceMat = useMemo(() => new THREE.ShaderMaterial({
-    vertexShader: PLANET_VERT,
-    fragmentShader: PLANET_FRAG,
-    uniforms: {
-      uType: { value: shade.type }, uT: { value: 0 }, uSeed: { value: shade.seed }, uLight: { value: STAR.clone() },
-      uA: { value: new THREE.Color(shade.a) }, uB: { value: new THREE.Color(shade.b) }, uC: { value: new THREE.Color(shade.c) }, uD: { value: new THREE.Color(shade.d) },
-      uCity: { value: new THREE.Color(shade.city) }, uAtm: { value: new THREE.Color(shade.atm) },
-    },
-  }), [shade])
+const RING_URL = textureUrl('ring')
+useTexture.preload(RING_URL)
+const prepareRing = (t: THREE.Texture) => prepareTexture(t, true)
 
-  const atmosphereMat = useMemo(() => new THREE.ShaderMaterial({
-    vertexShader: PLANET_VERT,
-    fragmentShader: ATMO_FRAG,
-    transparent: true,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    uniforms: { uLight: { value: STAR.clone() }, uAtm: { value: new THREE.Color(shade.atm) } },
-  }), [shade])
-
-  useEffect(() => () => { surfaceMat.dispose(); atmosphereMat.dispose() }, [surfaceMat, atmosphereMat])
-
-  // Ring: remap UVs so the texture runs from the inner edge (u=0) to the outer edge (u=1),
-  // then use a banded, partly see-through texture like Saturn's rings.
+/** Saturn's rings (texture with alpha) around the planet, lit by the star and crossed by the planet's shadow. */
+function PlanetRing({ radius }: { radius: number }) {
+  const ringTex = useTexture(RING_URL, prepareRing)
+  // remap UVs so the texture runs from the inner edge (u=0) to the outer edge (u=1)
   const ringGeo = useMemo(() => {
     const inner = radius * 1.45, outer = radius * 2.3
     const g = new THREE.RingGeometry(inner, outer, 128, 1)
@@ -45,35 +46,8 @@ export function PlanetBody({ planet, onClick }: { planet: HomePlanet; onClick?: 
     }
     return g
   }, [radius])
-  const ringTex = useMemo(() => ringTexture(planet.color), [planet.color])
+  const material = useMemo(() => ringMaterial(ringTex, radius), [ringTex, radius])
+  useEffect(() => () => { ringGeo.dispose(); material.dispose() }, [ringGeo, material])
 
-  useFrame((state, dt) => {
-    const m = surface.current
-    if (!m) return
-    ;(m.material as THREE.ShaderMaterial).uniforms.uT.value = state.clock.elapsedTime
-    m.rotation.y += dt * 0.06 // real planets turn slowly
-  })
-
-  return (
-    <group>
-      <mesh
-        ref={surface}
-        material={surfaceMat}
-        onClick={onClick}
-        onPointerOver={() => { if (onClick) document.body.style.cursor = 'pointer' }}
-        onPointerOut={() => { document.body.style.cursor = '' }}
-      >
-        <sphereGeometry args={[radius, 64, 48]} />
-      </mesh>
-      {/* fixed draw order for the see-through layers stops them flickering as the camera moves */}
-      <mesh material={atmosphereMat} raycast={() => null} renderOrder={2}>
-        <sphereGeometry args={[radius * 1.035, 64, 48]} />
-      </mesh>
-      {planet.ring && (
-        <mesh rotation-x={1.25} geometry={ringGeo} raycast={() => null} renderOrder={1}>
-          <meshStandardMaterial map={ringTex} transparent side={THREE.DoubleSide} depthWrite={false} roughness={1} />
-        </mesh>
-      )}
-    </group>
-  )
+  return <mesh rotation-x={1.25} geometry={ringGeo} material={material} raycast={() => null} renderOrder={1} />
 }

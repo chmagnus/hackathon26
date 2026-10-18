@@ -1,40 +1,61 @@
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
+import { Billboard } from '@react-three/drei'
 import * as THREE from 'three'
-import { radialTexture } from './textures'
+import { STAR_LIGHT } from './lighting'
+import { GLOW_FRAG, GLOW_VERT, SUN_FRAG, SUN_VERT } from './sunShaders'
 
-const VERT = `varying vec3 vP;varying vec3 vN;varying vec3 vV;void main(){vP=position;vN=normalize(normalMatrix*normal);vec4 mv=modelViewMatrix*vec4(position,1.0);vV=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}`
-const FRAG = `uniform float t;varying vec3 vP;varying vec3 vN;varying vec3 vV;
-float n3(vec3 p){return sin(p.x*2.1+t)*sin(p.y*2.7-t*1.3)*sin(p.z*2.4+t*.7);}
-void main(){vec3 p=vP*1.1;float n=n3(p)*.5+n3(p*2.3+3.0)*.3+n3(p*5.1-1.0)*.2;float f=pow(1.0-max(dot(vN,vV),0.0),2.0);
-vec3 a=vec3(1.0,0.45,0.1);vec3 b=vec3(1.0,0.93,0.65);vec3 col=mix(a,b,n*.5+.55)+f*vec3(1.0,0.6,0.25);gl_FragColor=vec4(col,1.0);}`
+/**
+ * Glow layers: a tight warm glow just around the disc, and a very faint wide orange haze. Both stay below the bloom
+ * threshold, so the glow is ours rather than bloom saturation. [reach in star radii, colour, intensity]
+ */
+const GLOW: [number, string, number][] = [
+  [1.5, '#ffb347', 0.8],
+  [4, '#ff8a3d', 0.06],
+]
 
-const CORONA: [number, number][] = [[14, 0.8], [28, 0.3], [56, 0.08]]
-
-/** The user's star: animated surface, glowing corona, and the light that shines on the planets. */
+/** The user's star: a warm, churning plasma surface, a soft glow, and the light that shines on the planets. */
 export function Star({ radius = 4 }: { radius?: number }) {
-  const mat = useMemo(() => new THREE.ShaderMaterial({ uniforms: { t: { value: 0 } }, vertexShader: VERT, fragmentShader: FRAG }), [])
-  const glow = useMemo(() => radialTexture([[0, 'rgba(255,250,235,1)'], [0.15, 'rgba(255,220,150,.85)'], [0.4, 'rgba(255,160,70,.25)'], [1, 'rgba(255,120,40,0)']]), [])
+  const surfaceMat = useMemo(() => new THREE.ShaderMaterial({
+    vertexShader: SUN_VERT,
+    fragmentShader: SUN_FRAG,
+    uniforms: { uTime: { value: 0 } },
+  }), [])
+  const glowMats = useMemo(() => GLOW.map(([extent, color, intensity]) => new THREE.ShaderMaterial({
+    vertexShader: GLOW_VERT,
+    fragmentShader: GLOW_FRAG,
+    uniforms: { uExtent: { value: extent }, uColor: { value: new THREE.Color(color) }, uIntensity: { value: intensity } },
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  })), [])
+  useEffect(() => () => { surfaceMat.dispose(); glowMats.forEach((m) => m.dispose()) }, [surfaceMat, glowMats])
+
   const body = useRef<THREE.Mesh>(null)
-  const sprites = useRef<THREE.Sprite[]>([])
+  const layers = useRef<THREE.Mesh[]>([])
 
   useFrame((s) => {
     const t = s.clock.elapsedTime
-    if (body.current) (body.current.material as THREE.ShaderMaterial).uniforms.t.value = t * 0.6
-    sprites.current.forEach((sp, i) => sp?.scale.setScalar(CORONA[i][0] * (1 + Math.sin(t * 1.3 + i) * 0.04)))
+    if (body.current) (body.current.material as THREE.ShaderMaterial).uniforms.uTime.value = t
+    for (let i = 0; i < layers.current.length; i++) {
+      // a very slow, slight breathing
+      ;(layers.current[i].material as THREE.ShaderMaterial).uniforms.uIntensity.value = GLOW[i][2] * (1 + Math.sin(t * 0.9 + i * 2.1) * 0.03)
+    }
   })
 
   return (
     <group>
-      <pointLight color="#fff0dd" intensity={2.1} distance={0} decay={0} />
-      <mesh ref={body} material={mat}>
+      <pointLight color={STAR_LIGHT.color} intensity={STAR_LIGHT.intensity} distance={0} decay={0} />
+      <mesh ref={body} material={surfaceMat}>
         <sphereGeometry args={[radius, 64, 48]} />
       </mesh>
-      {CORONA.map(([size, opacity], i) => (
-        <sprite key={i} ref={(el) => { if (el) sprites.current[i] = el }} scale={size}>
-          <spriteMaterial map={glow} transparent opacity={opacity} depthWrite={false} blending={THREE.AdditiveBlending} />
-        </sprite>
-      ))}
+      <Billboard>
+        {GLOW.map(([extent], i) => (
+          <mesh key={i} ref={(el) => { if (el) layers.current[i] = el }} material={glowMats[i]} raycast={() => null} renderOrder={3 + i}>
+            <planeGeometry args={[radius * extent * 2, radius * extent * 2]} />
+          </mesh>
+        ))}
+      </Billboard>
     </group>
   )
 }
