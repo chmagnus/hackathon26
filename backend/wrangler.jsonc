@@ -4,6 +4,7 @@
 // The Workers AI credentials are secrets: npx wrangler secret put CF_ACCOUNT_ID (then CF_API_TOKEN).
 {
   "name": "nova",
+  "routes": [{ "pattern": "nova.chmagnus.com", "custom_domain": true }],
   "main": "src/worker.py",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["python_workers"],
