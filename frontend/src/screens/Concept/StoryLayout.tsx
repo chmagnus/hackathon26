@@ -87,7 +87,7 @@ export default function StoryLayout({
           </div>
         </div>
       </main>
-      <AlgoChat planetId={planetId} moonId={moon.id} suggested={moon.suggested} onMoonLink={openMoon} reaction={reaction} />
+      <AlgoChat planetId={planetId} moonId={moon.id} onMoonLink={openMoon} reaction={reaction} />
     </div>
   )
 }

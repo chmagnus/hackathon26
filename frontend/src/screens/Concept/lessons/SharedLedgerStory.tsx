@@ -9,15 +9,6 @@ import type { LessonProps } from '../StoryLayout'
 import { NAMES, balances, makeQuiz, makeScene, navHTML, selP, sleep, storyParts, type Line, type Name } from './storyKit'
 import '../story.css'
 
-/** Nib's pre-written answers from the prototype, now Algo's */
-const QUICK_ANSWERS: [string, string][] = [
-  ["What's a ledger?", 'A ledger is just a list of payments: who paid whom, and how much. Think of a shared note that says “Alice paid Bob 20”. Nobody hands over cash until you settle up.'],
-  ['Why not just use cash?', "You could! But swapping cash after every pizza gets annoying. Writing it down means you only pay once a month, and it's the first step towards money that's completely digital."],
-  ['What does settling up mean?', "It's when everyone adds up what they paid and what they received. Paid out more? You put the difference in a pot. Received more? You take it out. Then everyone's even."],
-  ['Why does everyone start with 100?', "So nobody can spend money they don't have. If Charlie only has 20 left on the ledger, a payment of 40 gets rejected. That's what turns the list itself into money."],
-  ["Can't Bob just cheat?", 'Right now, yes! Nothing proves Alice agreed to a line Bob writes. That\'s what digital signatures fix, a few moons from now. First, the next moon gives us fingerprints for data: hashing.'],
-]
-
 export default function SharedLedgerStory({ planetId, moon, onBack, onComplete }: LessonProps) {
   const mainRef = useRef<HTMLElement>(null)
   const [reaction, setReaction] = useState<Reaction>({ text: "Scroll down and I'll walk you through it. Ask me anything on the way!", key: 0 })
@@ -147,7 +138,7 @@ export default function SharedLedgerStory({ planetId, moon, onBack, onComplete }
         </div>
       </header>
       <main className="cmain" ref={mainRef} />
-      <AlgoChat planetId={planetId} moonId={moon.id} quickAnswers={QUICK_ANSWERS} reaction={reaction} />
+      <AlgoChat planetId={planetId} moonId={moon.id} reaction={reaction} />
     </div>
   )
 }

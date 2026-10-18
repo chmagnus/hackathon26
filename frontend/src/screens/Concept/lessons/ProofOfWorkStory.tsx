@@ -10,17 +10,6 @@ import type { LessonProps } from '../StoryLayout'
 import { MINERS, ZERO, bstr, chainHTML, esc, hashHTML, makeChain, makeHashScene, makeQuiz, navHTML, raceHTML, raceMiners, sha256, sleep, storyParts, valid, type RaceResult } from './storyKit'
 import '../story.css'
 
-/** Nib's pre-written answers for this moon from the prototype (plus two more), now Algo's */
-const QUICK_ANSWERS: [string, string][] = [
-  ["What's a nonce?", "A nonce is the extra number miners keep changing. They try 0, 1, 2… until the block's hash starts with enough zeros. That lucky number proves they did the work."],
-  ['Why is mining hard but checking easy?', "Finding the nonce can take billions of guesses, but checking it takes one hash. That's the whole trick: expensive to make, cheap to verify."],
-  ['Why does changing an old block break the chain?', "Each block holds the hash of the block before it. Change an old block and its hash changes, so the next block's “previous hash” no longer fits, and so on. You'd have to redo the work for every block after it."],
-  ['Where do new coins come from?', "The miner who finds a valid block gets to add a reward line paying themselves new coins. That's the only way new bitcoin is created."],
-  ['Does the fastest computer always win?', 'No! A faster computer makes more guesses, so it wins more often. But every guess is like a lottery ticket, so a slower miner can still get lucky.'],
-]
-/** Questions for the AI tutor (need the backend) */
-const SUGGESTED = ['Why is expected search time not guaranteed?', 'How does adding one required hexadecimal zero change expected attempts?']
-
 const TX = 'Alice pays Bob 20\nBob pays Charlie 5\nCharlie pays Alice 8'
 
 export default function ProofOfWorkStory({ planetId, moon, onBack, onComplete }: LessonProps) {
@@ -260,7 +249,7 @@ export default function ProofOfWorkStory({ planetId, moon, onBack, onComplete }:
         </div>
       </header>
       <main className="cmain" ref={mainRef} />
-      <AlgoChat planetId={planetId} moonId={moon.id} quickAnswers={QUICK_ANSWERS} suggested={SUGGESTED} reaction={reaction} />
+      <AlgoChat planetId={planetId} moonId={moon.id} reaction={reaction} />
     </div>
   )
 }

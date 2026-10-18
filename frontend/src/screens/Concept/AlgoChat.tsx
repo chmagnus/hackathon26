@@ -1,11 +1,11 @@
 /**
  * Algo, the alien guide, as a chat bubble in the bottom-right corner.
  *  - Pops up short comments in a speech bubble (like Nib did in the prototype).
- *  - Click Algo to open a chat bubble: suggested questions + ask your own (answered by the AI tutor).
+ *  - Click Algo to open a chat bubble and ask your own questions (answered by the AI tutor).
  */
 import { useEffect, useRef, useState } from 'react'
 import Algo, { type AlgoMood } from './Algo'
-import { streamTutor, typeOut, type ChatMessage } from './tutorApi'
+import { streamTutor, type ChatMessage } from './tutorApi'
 import { playAlgoClick, startAlgoVoice, stopAlgoVoice } from '../../shared/sounds'
 
 export type Reaction = { text: string; key: number }
@@ -13,19 +13,15 @@ export type Reaction = { text: string; key: number }
 type AlgoChatProps = {
   planetId: string // e.g. "blockchain"
   moonId: string // e.g. "ledgers"
-  /** Question chips sent to the AI tutor */
-  suggested?: string[]
-  /** Question chips with pre-written answers (instant, no AI needed) */
-  quickAnswers?: [question: string, answer: string][]
   /** Short comment for Algo to pop up. Change `key` to show a new one. */
   reaction?: Reaction
   onMoonLink?: (moonId: string) => void
 }
 
-const FALLBACK = "Hmm, my signal's weak right now. Try one of the suggested questions, or ask me again in a moment!"
+const FALLBACK = "Hmm, my signal's weak right now. Ask me again in a moment!"
 const HAPPY_MS = 1500 // how long Algo looks pleased after finishing an answer
 
-export default function AlgoChat({ planetId, moonId, suggested = [], quickAnswers = [], reaction, onMoonLink }: AlgoChatProps) {
+export default function AlgoChat({ planetId, moonId, reaction, onMoonLink }: AlgoChatProps) {
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
@@ -69,7 +65,7 @@ export default function AlgoChat({ planetId, moonId, suggested = [], quickAnswer
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight })
   }, [messages, open])
 
-  async function send(text: string, preset?: string) {
+  async function send(text: string) {
     const question = text.trim()
     if (!question || streaming) return
 
@@ -95,8 +91,7 @@ export default function AlgoChat({ planetId, moonId, suggested = [], quickAnswer
 
     let answered = false
     try {
-      if (preset) await typeOut(preset, append, abort.signal)
-      else await streamTutor({ system: planetId, moon_id: moonId, messages: history }, append, abort.signal)
+      await streamTutor({ system: planetId, moon_id: moonId, messages: history }, append, abort.signal)
       answered = true
     } catch {
       if (abort.signal.aborted) return
@@ -126,7 +121,6 @@ export default function AlgoChat({ planetId, moonId, suggested = [], quickAnswer
     : streaming || (reacting && !open) ? 'talking'
     : happy ? 'happy'
     : 'idle'
-  const chips: { q: string; a?: string }[] = [...quickAnswers.map(([q, a]) => ({ q, a })), ...suggested.map((q) => ({ q }))]
 
   return (
     <>
@@ -173,21 +167,6 @@ export default function AlgoChat({ planetId, moonId, suggested = [], quickAnswer
               </div>
             ))}
           </div>
-
-          {chips.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 px-4 pb-3">
-              {chips.map((c) => (
-                <button
-                  key={c.q}
-                  onClick={() => send(c.q, c.a)}
-                  disabled={streaming}
-                  className="rounded-full border border-sky/40 bg-sky/10 px-3 py-1.5 text-left text-[12.5px] font-bold text-sky cursor-pointer hover:bg-sky/20 disabled:opacity-50"
-                >
-                  {c.q}
-                </button>
-              ))}
-            </div>
-          )}
 
           <form onSubmit={(e) => { e.preventDefault(); send(input) }} className="flex gap-2 border-t border-white/10 px-4 py-3">
             <input

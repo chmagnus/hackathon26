@@ -10,18 +10,6 @@ import type { LessonProps } from '../StoryLayout'
 import { esc, hashDiff, hashHTML, makeHashScene, makeQuiz, navHTML, sha256, sleep, storyParts } from './storyKit'
 import '../story.css'
 
-/** Nib's pre-written answers for this moon from the prototype (plus three more), now Algo's */
-const QUICK_ANSWERS: [string, string][] = [
-  ['What is a hash?', 'A hash is a fingerprint for data. Feed any text into a hash function like SHA-256 and you get a fixed-length code. Same text, same code, every time.'],
-  ['Why is it always 64 characters?', "SHA-256 always gives out 256 bits. Each character holds 4 of them, so that's 64 characters, whether you hash one letter or a whole book."],
-  ["Why can't you reverse a hash?", 'The maths scrambles the input so thoroughly that nobody has found a shortcut back. The only way to find an input for a given hash is to keep guessing.'],
-  ['How does a hash catch a sneaky edit?', "Save the fingerprint when a line is written. Later, hash the line again and compare. If even one character changed, the fingerprints won't match."],
-  ['Can two texts have the same hash?', "In theory, yes: there are endless texts but only 2²⁵⁶ hashes. But nobody has ever found two for SHA-256. It's so unlikely that we treat it as impossible."],
-  ['Where are hashes used?', "Everywhere! Storing passwords safely, checking downloads aren't corrupted, secure websites, and of course chaining blocks together in Bitcoin."],
-]
-/** Questions for the AI tutor (need the backend) */
-const SUGGESTED = ['Why must two computers agree on text encoding?', 'Why is hashing different from encryption?']
-
 const HELLO = 'Hello from GUTS'
 const LINE = 'Alice pays Bob 20'
 
@@ -233,7 +221,7 @@ export default function HashStory({ planetId, moon, onBack, onComplete }: Lesson
         </div>
       </header>
       <main className="cmain" ref={mainRef} />
-      <AlgoChat planetId={planetId} moonId={moon.id} quickAnswers={QUICK_ANSWERS} suggested={SUGGESTED} reaction={reaction} />
+      <AlgoChat planetId={planetId} moonId={moon.id} reaction={reaction} />
     </div>
   )
 }

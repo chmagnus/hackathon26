@@ -10,17 +10,6 @@ import type { LessonProps } from '../StoryLayout'
 import { NAMES, esc, makeQuiz, makeScene, navHTML, sha256, sleep, storyParts, type Line, type Name } from './storyKit'
 import '../story.css'
 
-/** Nib's pre-written answers for this moon from the prototype (plus two more), now Algo's */
-const QUICK_ANSWERS: [string, string][] = [
-  ["What's a secret key?", "It's like a password only you know. You use it to make signatures. Your public key is its partner that everyone can see, and it's used to check those signatures."],
-  ['Why does the signature change every time?', "Because it's made from the message AND your secret key. Change the message even slightly and you get a totally different signature, so you can't copy one onto another payment."],
-  ["Why can't Bob guess the signature?", "There are 2²⁵⁶ possible signatures, a number with 78 digits. Even every computer on Earth guessing for billions of years wouldn't get close."],
-  ['Why is it OK that everyone sees my public key?', "Because a public key can only check signatures, not make them. Making one needs your secret key, and that never leaves you."],
-  ["What's the copy trick?", "Bob copies one of Alice's real signed payments and adds it again, so she pays twice. The signature is real, so it looks fine! Giving every payment a unique ID stops it: each ID can only be used once."],
-]
-/** Questions for the AI tutor (need the backend) */
-const SUGGESTED = ['How do real cryptocurrencies use signatures?']
-
 const REAL = 'Alice pays Bob 20 · ID 1'
 const FAKE = 'Alice pays Bob 100 · ID 2'
 
@@ -222,7 +211,7 @@ export default function SignaturesStory({ planetId, moon, onBack, onComplete }: 
         </div>
       </header>
       <main className="cmain" ref={mainRef} />
-      <AlgoChat planetId={planetId} moonId={moon.id} quickAnswers={QUICK_ANSWERS} suggested={SUGGESTED} reaction={reaction} />
+      <AlgoChat planetId={planetId} moonId={moon.id} reaction={reaction} />
     </div>
   )
 }

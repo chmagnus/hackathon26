@@ -100,13 +100,3 @@ async function mockStream(req: TutorRequest, onToken: (t: string) => void, signa
 }
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
-
-/** Types out a pre-written answer word by word (used for the suggested-question chips). */
-export async function typeOut(text: string, onToken: (t: string) => void, signal?: AbortSignal) {
-  await wait(250)
-  for (const word of text.split(' ')) {
-    if (signal?.aborted) return
-    onToken(word + ' ')
-    await wait(18 + Math.random() * 25)
-  }
-}

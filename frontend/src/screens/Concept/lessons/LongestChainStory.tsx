@@ -10,17 +10,6 @@ import type { LessonProps } from '../StoryLayout'
 import { NAMES, PCOL, catchUp, laneHTML, makeQuiz, navHTML, pct, sleep, storyParts } from './storyKit'
 import '../story.css'
 
-/** Nib's pre-written answers for this moon from the prototype (plus two more), now Algo's */
-const QUICK_ANSWERS: [string, string][] = [
-  ['Why trust the longest chain?', 'The longest chain has the most work behind it. To fake it, a cheater would need to out-mine everyone else combined, which is incredibly expensive.'],
-  ['What if two chains are the same length?', "Then it's a tie, and nobody can tell yet. Everyone waits. The next block lands on one side and makes it longer, and everyone switches to that one."],
-  ['Can a long chain with a fake payment win?', 'No. Everyone first checks that every block follows the rules, like real signatures and no overspending. A chain with a rule-breaking block is thrown out, however long it is.'],
-  ["What's a 51% attack?", "If one person controlled more than half of all mining power, they could build a longer fake chain faster than everyone else and rewrite recent history. That's the next moon: double spending and majority attacks."],
-  ['Why wait for 6 blocks?', 'Each new block on top makes it much harder for a cheater to catch up. After about 6, the chance is tiny, so people treat the payment as final.'],
-]
-/** Questions for the AI tutor (need the backend) */
-const SUGGESTED = ['When does longest chain mean most work?', 'What can happen to transactions after a reorganisation?']
-
 const MINT = 'var(--mint)', SKY = 'var(--sky)', ORANGE = '#ff9a3c'
 const WAITS = [1, 2, 3, 6] // catchUp(z) is for a cheater with 10% of the computing power
 
@@ -204,7 +193,7 @@ export default function LongestChainStory({ planetId, moon, onBack, onComplete }
         </div>
       </header>
       <main className="cmain" ref={mainRef} />
-      <AlgoChat planetId={planetId} moonId={moon.id} quickAnswers={QUICK_ANSWERS} suggested={SUGGESTED} reaction={reaction} />
+      <AlgoChat planetId={planetId} moonId={moon.id} reaction={reaction} />
     </div>
   )
 }
