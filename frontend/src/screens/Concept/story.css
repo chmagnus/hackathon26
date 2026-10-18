@@ -85,5 +85,39 @@
 .nv .prog1 i{display:block;height:100%;width:0;background:var(--mint);border-radius:2px;transition:width .3s}
 .nv .down{font-size:13.5px;color:var(--muted)}
 
+/* Signatures lesson: keys, signatures, the paper card and Back/Next */
+.nv .keys{display:flex;flex-direction:column;align-items:center;gap:2px}
+.nv .key{font-style:normal;font-size:10.5px;font-weight:800;line-height:1.5;border-radius:999px;padding:0 7px;border:1px solid;white-space:nowrap}
+.nv .key.s{color:var(--gold);border-color:rgba(255,207,90,.5);background:rgba(255,207,90,.12)}
+.nv .key.p{color:var(--sky);border-color:rgba(124,196,255,.5);background:rgba(124,196,255,.12)}
+.nv .key.glow{animation:nv-glow 1.4s ease-out}
+.nv .scene.keyed .book{top:63%}
+.nv .sk{color:var(--gold)} .nv .pk{color:var(--sky)}
+.nv .mono{font-family:var(--f-mono);word-break:break-all}
+.nv .kt{width:100%;max-width:62ch;border-collapse:collapse;font-size:14px;margin:4px 0 12px}
+.nv .kt th{text-align:left;font-family:var(--f-mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:400;padding:4px 8px}
+.nv .kt td{padding:6px 8px;border-top:1px solid var(--edge)}
+.nv .kt .mono{font-size:13px}
+.nv .sigout{font-family:var(--f-mono);font-size:14px;color:var(--soft);background:rgba(255,255,255,.04);border:1px solid var(--edge);border-radius:10px;padding:8px 10px;word-break:break-all;margin:6px 0 12px;max-width:62ch;transition:color .3s}
+.nv .sigout.fresh{color:var(--gold)}
+.nv .pay{display:flex;flex-direction:column;align-items:flex-start;gap:6px;background:rgba(255,255,255,.04);border:1px solid var(--edge);border-radius:12px;padding:10px 12px;margin:4px 0 12px;max-width:62ch}
+.nv .pay .sigout{margin:0;align-self:stretch}
+.nv .pay .row{display:flex;gap:6px;flex-wrap:wrap}
+.nv .pay .fb{margin:0}
+.nv input.txt{font:inherit;font-size:15px;background:rgba(255,255,255,.06);border:1px solid var(--edge);color:var(--ink);border-radius:10px;padding:7px 10px;min-width:0;flex:1 1 220px}
+.nv input.txt:focus{outline:none;border-color:var(--mint)}
+.nv .checkl{list-style:none;margin:0 0 12px;padding:0;display:flex;flex-direction:column;gap:6px;max-width:62ch}
+.nv .checkl li{display:flex;gap:9px;color:var(--soft)}
+.nv .checkl li::before{content:"✓";color:var(--mint);font-weight:800}
+.nv .ledger .sig{font-family:var(--f-mono);font-size:11px;color:var(--muted)}
+.nv .book .ledger .sig{color:#6b6f80}
+.nv .book .pl{font-size:13px;margin:0 0 6px;color:#1d2133}
+.nv .book .pl .mono{font-size:12px;color:#4b5068}
+.nv .book .vok{color:#13805a;font-weight:800}
+.nv .book .vbad{color:#c23a31;font-weight:800}
+.nv .snav{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:10px}
+.nv .snav span{font-family:var(--f-mono);font-size:12px;color:var(--muted);min-width:9ch;text-align:center}
+
+@keyframes nv-glow{0%{transform:scale(1.35);box-shadow:0 0 18px currentColor}100%{transform:none;box-shadow:0 0 0 transparent}}
 @keyframes nv-pop{from{background:rgba(255,207,90,.25)}}
 @keyframes nv-shake{20%,60%{transform:translate(calc(-50% - 6px),-50%)}40%,80%{transform:translate(calc(-50% + 6px),-50%)}}

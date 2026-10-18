@@ -6,13 +6,8 @@
 import { useEffect, useRef, useState } from 'react'
 import AlgoChat, { type Reaction } from '../AlgoChat'
 import type { LessonProps } from '../StoryLayout'
+import { NAMES, balances, makeQuiz, makeScene, selP, sleep, type Line, type Name } from './storyKit'
 import '../story.css'
-
-type Name = 'Alice' | 'Bob' | 'Charlie'
-type Line = { f?: Name; t: Name; a: number; sys?: 1; bad?: 1; note?: string }
-
-const NAMES: Name[] = ['Alice', 'Bob', 'Charlie']
-const PCOL: Record<Name, string> = { Alice: '#ff8a7a', Bob: '#7cc4ff', Charlie: '#ffcf5a' }
 
 /** Nib's pre-written answers from the prototype, now Algo's */
 const QUICK_ANSWERS: [string, string][] = [
@@ -22,81 +17,6 @@ const QUICK_ANSWERS: [string, string][] = [
   ['Why does everyone start with 100?', "So nobody can spend money they don't have. If Charlie only has 20 left on the ledger, a payment of 40 gets rejected. That's what turns the list itself into money."],
   ["Can't Bob just cheat?", 'Right now, yes! Nothing proves Alice agreed to a line Bob writes. That\'s exactly what Moon 2 fixes with digital signatures.'],
 ]
-
-const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!)
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
-
-function balances(lines: Line[], start = 0) {
-  const b: Record<Name, number> = { Alice: start, Bob: start, Charlie: start }
-  lines.forEach((l) => {
-    if (l.bad) return
-    if (l.sys) { b[l.t] += l.a; return }
-    b[l.f!] -= l.a
-    b[l.t] += l.a
-  })
-  return b
-}
-
-function ledgerHTML(lines: Line[], newIdx: number | null) {
-  return `<ul class="ledger">${lines.map((l, i) => l.sys
-    ? `<li class="sys${i === newIdx ? ' new' : ''}"><span><span class="who">${l.t}</span> starts with</span><span class="amt">${l.a}</span></li>`
-    : `<li class="${l.bad ? 'bad' : ''}${i === newIdx ? ' new' : ''}"><span><span class="who" style="color:${PCOL[l.f!]}">${l.f}</span> pays <span class="who" style="color:${PCOL[l.t]}">${l.t}</span>${l.note ? `<br><span class="note">${esc(l.note)}</span>` : ''}</span><span class="amt">${l.a}</span></li>`,
-  ).join('')}</ul>`
-}
-
-const selP = (id: string, v: Name) => `<select id="${id}" aria-label="Person">${NAMES.map((n) => `<option${n === v ? ' selected' : ''}>${n}</option>`).join('')}</select>`
-const avHTML = (n: Name) => `<div class="av" style="--c:${PCOL[n]}">${n[0]}</div>`
-
-/** The scene: three friends, the notebook, balances, the pot and flying coins (same as the prototype's makeScene) */
-function makeScene(host: HTMLElement) {
-  host.innerHTML = `<div class="scene"><div class="pot" hidden>Pot <b>0</b></div>${NAMES.map((n) => `<div class="pp" data-n="${n}">${avHTML(n)}<span class="pn" style="color:${PCOL[n]}">${n}</span><em class="bal" hidden></em><i class="say" hidden></i></div>`).join('')}<div class="book" hidden></div></div>`
-  const root = host.firstElementChild as HTMLElement
-  const P: Record<string, [number, number]> = { Alice: [15, 76], Bob: [85, 76], Charlie: [50, 17], pot: [50, 92] }
-  const el = (n: Name) => root.querySelector(`[data-n="${n}"]`) as HTMLElement
-  NAMES.forEach((n) => { el(n).style.left = P[n][0] + '%'; el(n).style.top = P[n][1] + '%' })
-  const sayT: Partial<Record<Name, ReturnType<typeof setTimeout>>> = {}
-  return {
-    lines(lines: Line[], ni?: number | null) {
-      const b = root.querySelector('.book') as HTMLElement
-      b.hidden = false
-      const shown = lines.slice(-7)
-      b.innerHTML = `<div class="bh">Shared ledger</div>${ledgerHTML(shown, ni == null ? null : ni - Math.max(0, lines.length - 7))}`
-      const u = b.querySelector('ul'); if (u) u.scrollTop = 1e9
-    },
-    hideBook() { (root.querySelector('.book') as HTMLElement).hidden = true },
-    coin(a: string, b: string, red?: boolean) {
-      const c = document.createElement('div')
-      c.className = 'coin' + (red ? ' red' : '')
-      c.style.left = P[a][0] + '%'; c.style.top = P[a][1] + '%'
-      root.appendChild(c)
-      requestAnimationFrame(() => requestAnimationFrame(() => { c.style.left = P[b][0] + '%'; c.style.top = P[b][1] + '%' }))
-      setTimeout(() => { c.style.opacity = '0'; setTimeout(() => c.remove(), 300) }, 900)
-    },
-    bal(map: Record<Name, number> | null, net?: boolean) {
-      NAMES.forEach((n) => {
-        const e = el(n).querySelector('.bal') as HTMLElement
-        if (!map) { e.hidden = true; return }
-        e.hidden = false
-        const v = map[n]
-        e.textContent = (net && v > 0 ? '+' : '') + v
-        e.style.color = net ? (v > 0 ? 'var(--mint)' : v < 0 ? 'var(--coral)' : 'var(--ink)') : v < 0 ? 'var(--coral)' : 'var(--ink)'
-      })
-    },
-    say(n: Name, t: string, ms?: number) {
-      const e = el(n).querySelector('.say') as HTMLElement
-      e.textContent = t; e.hidden = false
-      clearTimeout(sayT[n]); sayT[n] = setTimeout(() => (e.hidden = true), ms || 2600)
-    },
-    hush() { NAMES.forEach((n) => ((el(n).querySelector('.say') as HTMLElement).hidden = true)) },
-    shake(n: Name) { const e = el(n); e.classList.remove('shake'); void e.offsetWidth; e.classList.add('shake') },
-    hl(n: Name | null) { NAMES.forEach((x) => el(x).classList.toggle('hl', x === n)) },
-    pot(v: number | null) {
-      const p = root.querySelector('.pot') as HTMLElement
-      if (v == null) { p.hidden = true; return }
-      p.hidden = false; (p.querySelector('b') as HTMLElement).textContent = String(v)
-    },
-  }
-}
 
 export default function SharedLedgerStory({ planetId, moon, onBack, onComplete }: LessonProps) {
   const mainRef = useRef<HTMLElement>(null)
@@ -114,18 +34,7 @@ export default function SharedLedgerStory({ planetId, moon, onBack, onComplete }
     let alive = true
 
     const $ = <T extends HTMLElement = HTMLElement>(id: string) => main.querySelector(`#${id}`) as T
-
-    function quiz(host: HTMLElement, q: string, opts: [string, boolean, string][], onRight?: () => void) {
-      host.innerHTML = `<div class="qz"><div class="qq">${q}</div>${opts.map((o, i) => `<button class="opt" data-i="${i}">${o[0]}</button>`).join('')}<p class="fb" hidden></p></div>`
-      const fb = host.querySelector('.fb') as HTMLElement
-      host.querySelectorAll<HTMLButtonElement>('.opt').forEach((b) => (b.onclick = () => {
-        const o = opts[+b.dataset.i!]
-        host.querySelectorAll('.opt').forEach((x) => x.classList.remove('right', 'wrong'))
-        b.classList.add(o[1] ? 'right' : 'wrong')
-        fb.hidden = false; fb.className = 'fb ' + (o[1] ? 'ok' : 'bad'); fb.textContent = o[2]
-        if (o[1]) { algoSay(o[2]); onRight?.() } else algoSay('Not quite. ' + o[2])
-      }))
-    }
+    const quiz = makeQuiz(algoSay)
 
     const st = {
       iou: [{ f: 'Alice', t: 'Bob', a: 20 }, { f: 'Bob', t: 'Charlie', a: 40 }] as Line[],

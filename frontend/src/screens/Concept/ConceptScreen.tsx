@@ -15,11 +15,13 @@ import type { LessonProps } from './StoryLayout'
 import GenericLesson from './lessons/GenericLesson'
 import HashingLesson from './lessons/HashingLesson'
 import SharedLedgerStory from './lessons/SharedLedgerStory'
+import SignaturesStory from './lessons/SignaturesStory'
 
 /** Moons with their own interactive scene. Anything else uses GenericLesson. */
 const LESSONS: Record<string, ComponentType<LessonProps>> = {
   ledgers: SharedLedgerStory, // the prototype's Story Scroll
   hashing: HashingLesson,
+  'digital-signatures': SignaturesStory, // ported from the prototype like ledgers
 }
 
 /**
@@ -29,6 +31,7 @@ const LESSONS: Record<string, ComponentType<LessonProps>> = {
  */
 const STANDALONE: Record<string, { title: string; order: number }> = {
   ledgers: { title: 'A shared ledger', order: 1 },
+  'digital-signatures': { title: 'Digital signatures', order: 4 },
 }
 
 /** A stand-in moon with just the basics, for a standalone lesson the backend doesn't know about */
