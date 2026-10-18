@@ -8,6 +8,7 @@ import { MoonsScreen } from './screens/Moons/MoonsScreen'
 import { MOCK_PLANET } from './screens/Moons/mockPlanet'
 import type { Planet } from './screens/Moons/types'
 import ConceptScreen from './screens/Concept/ConceptScreen'
+import MusicToggle from './shared/MusicToggle'
 import { useProgress } from './store/progress'
 
 /**
@@ -84,6 +85,7 @@ export default function App() {
         onEditMoon={(moonId, body) => useProgress.getState().editMoon(planet.id, moonId, body)}
         renderConcept={(moonId, handlers) => <ConceptScreen planetId={planet.id} moonId={moonId} {...handlers} />}
       />
+      <MusicToggle />      
     </div>
   )
 }
