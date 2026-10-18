@@ -4,7 +4,7 @@
  *  - Click Algo to open a chat bubble: suggested questions + ask your own (answered by the AI tutor).
  */
 import { useEffect, useRef, useState } from 'react'
-import Algo from './Algo'
+import Algo, { type AlgoMood } from './Algo'
 import { streamTutor, typeOut, type ChatMessage } from './tutorApi'
 import { playAlgoClick, startAlgoVoice, stopAlgoVoice } from '../../shared/sounds'
 
@@ -23,6 +23,7 @@ type AlgoChatProps = {
 }
 
 const FALLBACK = "Hmm, my signal's weak right now. Try one of the suggested questions, or ask me again in a moment!"
+const HAPPY_MS = 1500 // how long Algo looks pleased after finishing an answer
 
 export default function AlgoChat({ planetId, moonId, suggested = [], quickAnswers = [], reaction, onMoonLink }: AlgoChatProps) {
   const [open, setOpen] = useState(false)
@@ -53,6 +54,16 @@ export default function AlgoChat({ planetId, moonId, suggested = [], quickAnswer
   }
   useEffect(() => () => { abortRef.current?.abort(); stopAlgoVoice() }, [moonId])
 
+  // Algo looks happy for a moment after finishing an answer
+  const [happy, setHappy] = useState(false)
+  const happyTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  useEffect(() => () => clearTimeout(happyTimer.current), [])
+  function celebrate() {
+    setHappy(true)
+    clearTimeout(happyTimer.current)
+    happyTimer.current = setTimeout(() => setHappy(false), HAPPY_MS)
+  }
+
   // Keep the newest message in view
   useEffect(() => {
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight })
@@ -82,9 +93,11 @@ export default function AlgoChat({ planetId, moonId, suggested = [], quickAnswer
       })
     }
 
+    let answered = false
     try {
       if (preset) await typeOut(preset, append, abort.signal)
       else await streamTutor({ system: planetId, moon_id: moonId, messages: history }, append, abort.signal)
+      answered = true
     } catch {
       if (abort.signal.aborted) return
       setMessages((prev) => [...prev.slice(0, -1), { role: 'assistant', content: FALLBACK }])
@@ -92,6 +105,7 @@ export default function AlgoChat({ planetId, moonId, suggested = [], quickAnswer
       if (!abort.signal.aborted) {
         stopAlgoVoice()
         setStreaming(false)
+        if (answered) celebrate()
       }
     }
   }
@@ -107,7 +121,11 @@ export default function AlgoChat({ planetId, moonId, suggested = [], quickAnswer
   }
 
   const waiting = streaming && messages[messages.length - 1]?.content === ''
-  const talking = (streaming && !waiting) || (reacting && !open)
+  // thinking until the first word arrives, talking while it streams (or while he pops up a comment), then happy for a moment
+  const mood: AlgoMood = waiting ? 'thinking'
+    : streaming || (reacting && !open) ? 'talking'
+    : happy ? 'happy'
+    : 'idle'
   const chips: { q: string; a?: string }[] = [...quickAnswers.map(([q, a]) => ({ q, a })), ...suggested.map((q) => ({ q }))]
 
   return (
@@ -191,7 +209,7 @@ export default function AlgoChat({ planetId, moonId, suggested = [], quickAnswer
         aria-label={open ? 'Close chat with Algo' : 'Chat with Algo'}
         className="fixed right-5 bottom-5 z-40 grid h-[84px] w-[84px] place-items-center rounded-full border border-mint/40 bg-[#0b1427] shadow-[0_10px_40px_rgba(0,0,0,.5),0_0_24px_rgba(111,242,197,.18)] cursor-pointer transition-transform hover:scale-105"
       >
-        <span className="block h-[62px] w-[62px]"><Algo talking={talking} /></span>
+        <span className="block h-[62px] w-[62px]"><Algo mood={mood} /></span>
       </button>
 
       <style>{`@keyframes algo-pop { from { transform: translateY(8px) scale(.96); opacity: 0 } }`}</style>
