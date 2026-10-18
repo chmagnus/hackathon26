@@ -74,6 +74,7 @@ export default function App() {
         moonCounts={moonCounts}
         completedMoons={completedMoons}
         captured={captured.filter((id): id is PlanetId => isPlanetId(id) && id !== arriving)}
+        onResetProgress={Object.keys(systems).length || captured.length ? () => useProgress.getState().reset() : undefined}
       />
       <MoonsScreen
         key={planet.id}

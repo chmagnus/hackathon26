@@ -4,7 +4,11 @@
 
 Team 36 project for the GUTS 2026 Hackathon.
 
-Nova teaches classic computer science algorithms as explorable star systems. Each algorithm is a star, its concepts are moons in orbit, and each orbit is a chain of ideas that goes deeper as you move outward. Our first system teaches **blockchain**.
+Nova teaches classic computer science algorithms as a galaxy you fly through. Each algorithm is a planet, its chapters are moons in orbit, and each chapter holds lessons that go deeper as you move outward. Finish every lesson on a planet and it joins your orbit.
+
+- **Four planets, 48 lessons:** Blockchain, Dijkstra & OSPF, Sorting, and Binary Search.
+- **A real hash chain:** Blockchain's lessons are SHA-256 records linked like blocks. Tamper with one in the planet's Hash chain panel and every later chapter breaks.
+- **Algo, the AI tutor:** ask questions on any lesson page, and Algo answers from that lesson.
 
 ## Tech stack
 
@@ -17,17 +21,26 @@ Nova teaches classic computer science algorithms as explorable star systems. Eac
 nova/
 ├── backend/
 │   ├── src/
-│   │   └── main.py        # FastAPI app
-│   └── requirements.txt
+│   │   ├── main.py          # FastAPI app and the tutor route
+│   │   ├── routes/          # /api/systems and /verify
+│   │   ├── lessons/         # the authored lessons, one file per planet
+│   │   ├── chain.py         # SHA-256 hash chain and verification
+│   │   └── tutor.py         # tutor prompt and AI provider fallback
+│   ├── tests/
+│   ├── CONTENT_API.md       # the content API and how the frontend uses it
+│   └── LESSONS.md           # the curriculum
 ├── frontend/
-│   └── src/
-│       ├── screens/       # Home, Moon, Concept
-│       └── shared/        # reusable components
+│   ├── src/
+│   │   ├── galaxy/          # the shared three.js universe and camera
+│   │   ├── screens/         # Home, Moons (planet view), Concept (lesson pages)
+│   │   ├── store/           # progress saved in the browser
+│   │   └── api/             # API client and generated types
+│   └── tests/
+├── shared/hash_vectors.json # hashing test vectors for any implementation
+└── scripts/gen_types.sh     # regenerate frontend/src/api/types.ts from the API
 ```
 
 ## Getting started
-
-
 
 ### Prerequisites
 
@@ -93,11 +106,15 @@ To check the content API directly, open
 http://localhost:8000/api/systems/blockchain. Tutor development uses the mock
 provider by default, so no AI API key is required.
 
-Run backend tests from the repository root:
+Run backend tests from the repository root, and frontend tests from `frontend/`:
 
 ```bash
 backend/.venv/bin/python -m unittest discover -s backend/tests -v
+cd frontend && npm test
 ```
+
+Every pull request runs both, plus the frontend lint and build
+(`.github/workflows/ci.yml`).
 
 ## AI tutor
 
