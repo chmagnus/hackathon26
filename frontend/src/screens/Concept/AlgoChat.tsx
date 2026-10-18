@@ -129,7 +129,7 @@ export default function AlgoChat({ planetId, moonId, suggested = [], quickAnswer
       {open && (
         <section
           aria-label="Chat with Algo"
-          className="fixed right-5 bottom-[118px] z-40 flex h-[min(540px,70vh)] w-[380px] flex-col overflow-hidden rounded-3xl rounded-br-md border border-white/10 bg-[#070b18] shadow-2xl"
+          className="fixed right-5 bottom-[118px] z-40 flex h-[min(400px,60vh)] w-[320px] flex-col max-sm:left-3 max-sm:right-3 max-sm:w-auto overflow-hidden rounded-3xl rounded-br-md border border-white/10 bg-[#070b18] shadow-2xl"
           style={{ animation: 'algo-pop .25s ease-out' }}
         >
           <header className="flex items-center gap-3 border-b border-white/10 px-5 py-3.5">
