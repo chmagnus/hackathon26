@@ -1,0 +1,70 @@
+{
+  "rules": [
+    "canonical(text): replace CRLF then CR with LF; strip spaces and tabs from each line end; strip leading and trailing LF",
+    "sha256(text): lowercase hex SHA-256 of the UTF-8 bytes",
+    "genesis = sha256(canonical(star.body))",
+    "moon.hash = sha256(prev_hash + canonical(moon.title) + LF + canonical(moon.body)), starting from genesis"
+  ],
+  "canonical": [
+    {
+      "name": "plain text is unchanged",
+      "input": "Alice pays Bob 3",
+      "canonical": "Alice pays Bob 3",
+      "sha256": "007a99a1a0b51166f518a918533e042336515e473d5dd516bfcde2f4f7993958"
+    },
+    {
+      "name": "CRLF and lone CR become LF",
+      "input": "line one\r\nline two\rline three\r\n",
+      "canonical": "line one\nline two\nline three",
+      "sha256": "26a5cd654e540e91433a2f237e2709743fc4753e764deb74ed37299c2f338ece"
+    },
+    {
+      "name": "trailing spaces and tabs are stripped",
+      "input": "spaces   \ntabs\t\t\nkept",
+      "canonical": "spaces\ntabs\nkept",
+      "sha256": "b753c776e25203d9b4b7d879a61eb307e53ffd74a23337dcbbe3f1cd2671bfa7"
+    },
+    {
+      "name": "blank lines at the ends are removed",
+      "input": "\n\n  \nbody\n\n\n",
+      "canonical": "body",
+      "sha256": "230d8358dc8e8890b4c58deeb62912ee2f20357ae92a5cc861b98e68fe31acb5"
+    },
+    {
+      "name": "leading indentation is kept",
+      "input": "    indented code\n",
+      "canonical": "    indented code",
+      "sha256": "8f75381143df348a673991064b1dbe8e6e9d365991ec924463914325394522db"
+    },
+    {
+      "name": "inner blank lines are kept",
+      "input": "first\n\n\nsecond",
+      "canonical": "first\n\n\nsecond",
+      "sha256": "165c17a62e88e59e8668a28928a8151b6951cb886a061eb46c9b1a8a7ebd5067"
+    },
+    {
+      "name": "text is hashed as UTF-8",
+      "input": "café ⛓ 链",
+      "canonical": "café ⛓ 链",
+      "sha256": "4c54f8c60c73768243aea6a6bf3a0e0041e7760e3f30b5d026c41bd30206bb4b"
+    }
+  ],
+  "chain": {
+    "star": "Genesis record.\r\n",
+    "genesis": "93cfa0a4b67fe486c4bd2331438bf421f378d444f53cbbef5b4d3129b01da7bd",
+    "moons": [
+      {
+        "id": "a",
+        "title": "First",
+        "body": "Alice pays Bob 3.",
+        "hash": "08e2900c409a5fad888ba83039c4274597de0e3726bf242c3e8961f7d943cb97"
+      },
+      {
+        "id": "b",
+        "title": "Second",
+        "body": "\nBob pays Carol 1.  \r\n",
+        "hash": "66a9fb8c00215812a8e74bc818057d7e8100bbb646144d5ca688137fa34fe621"
+      }
+    ]
+  }
+}

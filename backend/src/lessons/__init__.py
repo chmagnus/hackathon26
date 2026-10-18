@@ -24,7 +24,7 @@ def orbit(number, title, lessons):
     ])
 
 
-def planet(id, title, colour, intro, orbits):
-    # Content-only release: do not advertise hash verification or unbuilt widgets.
-    return StarSystem(id=id, title=title, colour=colour, chain=False,
+def planet(id, title, colour, intro, orbits, chain=False):
+    # Widgets stay null until they are integrated; chain planets are sealed in content_data.
+    return StarSystem(id=id, title=title, colour=colour, chain=chain,
                       star=Star(body=intro), orbits=orbits)

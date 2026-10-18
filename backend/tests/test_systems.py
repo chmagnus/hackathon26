@@ -21,7 +21,7 @@ class SystemsApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         planet = response.json()
         self.assertEqual(planet["title"], "Blockchain")
-        self.assertFalse(planet["chain"])
+        self.assertTrue(planet["chain"])
         self.assertEqual(len(planet["orbits"]), 4)
         moons = [moon for orbit in planet["orbits"] for moon in orbit["moons"]]
         self.assertEqual([moon["id"] for moon in moons[:2]], ["ledgers", "hashing"])
