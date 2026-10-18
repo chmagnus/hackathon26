@@ -9,13 +9,12 @@ class SystemsApiTests(unittest.TestCase):
     def setUp(self):
         self.client = self.enterContext(TestClient(app))
 
-    def test_list_contains_only_blockchain_with_two_moons(self):
+    def test_list_contains_all_four_learning_paths(self):
         response = self.client.get("/api/systems")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), [{
-            "id": "blockchain", "title": "Blockchain",
-            "colour": "#6ff2c5", "moon_count": 2,
-        }])
+        self.assertEqual({system["id"]: system["moon_count"] for system in response.json()}, {
+            "blockchain": 16, "dijkstra": 12, "sorting": 12, "binary-search": 8,
+        })
 
     def test_full_planet_has_ordered_readable_lessons(self):
         response = self.client.get("/api/systems/blockchain")
@@ -23,23 +22,27 @@ class SystemsApiTests(unittest.TestCase):
         planet = response.json()
         self.assertEqual(planet["title"], "Blockchain")
         self.assertFalse(planet["chain"])
-        self.assertEqual(len(planet["orbits"]), 1)
-        moons = planet["orbits"][0]["moons"]
-        self.assertEqual([moon["id"] for moon in moons], ["ledgers", "hashing"])
-        self.assertEqual([moon["order"] for moon in moons], [1, 2])
+        self.assertEqual(len(planet["orbits"]), 4)
+        moons = [moon for orbit in planet["orbits"] for moon in orbit["moons"]]
+        self.assertEqual([moon["id"] for moon in moons[:2]], ["ledgers", "hashing"])
         for moon in moons:
-            self.assertEqual(len(moon["dialogue_steps"]), 3)
+            self.assertEqual(len(moon["dialogue_steps"]), 5)
             for step in moon["dialogue_steps"]:
                 self.assertTrue(step["body"])
                 self.assertIn(step["body"], moon["body"])
             self.assertIn(moon["check"]["answer"], moon["check"]["options"])
 
     def test_individual_moons_match_full_response(self):
-        moons = self.client.get("/api/systems/blockchain").json()["orbits"][0]["moons"]
-        for moon in moons:
-            response = self.client.get(f"/api/systems/blockchain/moons/{moon['id']}")
-            self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.json(), moon)
+        for system in self.client.get("/api/systems").json():
+            detail = self.client.get(f"/api/systems/{system['id']}")
+            self.assertEqual(detail.status_code, 200)
+            moons = [moon for orbit in detail.json()["orbits"] for moon in orbit["moons"]]
+            self.assertEqual(len(moons), system["moon_count"])
+            for moon in moons:
+                with self.subTest(planet=system["id"], moon=moon["id"]):
+                    response = self.client.get(f"/api/systems/{system['id']}/moons/{moon['id']}")
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response.json(), moon)
 
     def test_unknown_resources_return_structured_404(self):
         for url, code in [

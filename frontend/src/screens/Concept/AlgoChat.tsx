@@ -135,7 +135,7 @@ export default function AlgoChat({ planetId, moonId, suggested = [], quickAnswer
         <div
           key={reaction.key}
           role="status"
-          className="fixed right-[112px] bottom-12 z-40 max-w-[320px] rounded-2xl rounded-br-sm border border-mint/40 bg-[#0b1427] px-4 py-3 text-[15px] leading-snug text-ink shadow-2xl"
+          className="fixed right-[112px] bottom-12 z-40 max-w-[320px] max-sm:left-3 max-sm:max-w-none rounded-2xl rounded-br-sm border border-mint/40 bg-[#0b1427] px-4 py-3 text-[15px] leading-snug text-ink shadow-2xl"
           style={{ animation: 'algo-pop .3s ease-out' }}
         >
           {reaction.text}
