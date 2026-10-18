@@ -8,6 +8,7 @@
  *  - completedMoons / captured / justCaptured: progress from the shared state (whoever owns it)
  *  - onSelectPlanet(id): called once the camera has arrived at the clicked planet (the Moon overlay shows from there).
  *    Only live planets fly in; "coming soon" ones just show a toast.
+ *  - onResetProgress(): clears the saved progress. When given, the name card shows "Reset" (with a confirmation).
  * If those props aren't passed, the screen runs on its own with demo progress so it can be built and tested alone.
  *
  * The 3D scene is drawn in the shared Universe canvas (src/galaxy), which must be mounted alongside this screen;
@@ -19,6 +20,7 @@ import { InUniverse } from '../../galaxy/tunnel'
 import { useView } from '../../galaxy/view'
 import { HomeScene } from './HomeScene'
 import { HOME_PLANETS, type PlanetId } from './planets'
+import { ResetProgressDialog } from './ResetProgressDialog'
 import { playPlanetClick } from '../../shared/sounds'
 
 export interface HomeScreenProps {
@@ -27,6 +29,7 @@ export interface HomeScreenProps {
   captured?: PlanetId[]
   justCaptured?: PlanetId | null
   onSelectPlanet?: (id: PlanetId) => void
+  onResetProgress?: () => void
 }
 
 const NAME_KEY = 'nova-name'
@@ -53,6 +56,7 @@ export function HomeScreen(props: HomeScreenProps) {
   const [name, setName] = useState<string | null>(readName)
   const [editingName, setEditingName] = useState(name === null)
   const [draft, setDraft] = useState(name ?? '')
+  const [confirmReset, setConfirmReset] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const showToast = (text: string) => {
     setToast(text)
@@ -119,6 +123,11 @@ export function HomeScreen(props: HomeScreenProps) {
         <span className="leading-tight">
           <b className="block">{shown}</b>
           <span className="text-xs text-muted">{inOrbit} planet{inOrbit === 1 ? '' : 's'} in your orbit</span>
+          {props.onResetProgress && (
+            <button onClick={() => setConfirmReset(true)} aria-label="Reset progress" className="ml-1.5 text-xs text-muted underline underline-offset-2 hover:text-ink">
+              Reset
+            </button>
+          )}
         </span>
         <button onClick={() => { setDraft(name ?? ''); setEditingName(true) }} className="ml-1.5 rounded-lg border border-white/15 bg-white/5 px-2.5 py-1 text-sm font-bold hover:bg-white/10">
           Change
@@ -153,6 +162,13 @@ export function HomeScreen(props: HomeScreenProps) {
         <div role="status" className="pointer-events-auto absolute left-1/2 top-4 z-30 max-w-[min(520px,calc(100%-32px))] -translate-x-1/2 rounded-2xl border border-white/15 bg-[#0b1124] px-4 py-2.5 text-sm shadow-2xl">
           {toast}
         </div>
+      )}
+
+      {confirmReset && props.onResetProgress && (
+        <ResetProgressDialog
+          onCancel={() => setConfirmReset(false)}
+          onReset={() => { props.onResetProgress?.(); setConfirmReset(false) }}
+        />
       )}
 
       {/* first visit: ask for a name (a real login page can replace this later) */}
