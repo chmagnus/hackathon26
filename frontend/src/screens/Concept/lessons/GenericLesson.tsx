@@ -1,69 +1,79 @@
 /**
- * Lesson page for moons without a hand-built story: the text comes from the backend (StoryLayout), and the scene
- * reuses the story lessons' pieces from storyKit (hash ring, chain of blocks, mining, chain lanes, Merkle tree, stake).
- * Each part of the story can change what the scene does. Moons not in SCENES show Algo with the part's title.
+ * Lesson page for moons without a hand-built story: the text comes from the backend (StoryLayout), and the scene is
+ * the moon's own (./scenes, one file per moon): a picture that follows the story part by part, plus a "Try it" box
+ * inside each part. Moons without a scene show Algo with the part's title.
  */
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Algo from '../Algo'
+import type { Reaction } from '../AlgoChat'
 import StoryLayout, { type LessonProps } from '../StoryLayout'
-import { mountScene, type SceneName, type ScenePart } from './storyKit'
+import { SCENES, nextUp } from './scenes'
+import type { MoonScene } from './scenes/kit'
 import '../story.css'
 
-/**
- * Moon id (backend/src/lessons/blockchain.py) -> scene, and what it does in each part, in order.
- * The last entry also covers any later parts and the quick check. `try: false` = just show the idea.
- */
-const SCENES: Record<string, { scene: SceneName; parts?: ScenePart[] }> = {
-  'avalanche-effect': { scene: 'hash', parts: [{ try: false }, { mode: 'bits' }, {}] },
-  blocks: { scene: 'chain', parts: [{ try: false }, { try: false }, {}] },
-  'previous-hash': { scene: 'chain', parts: [{ try: false }, { try: false }, {}, {}, { rewrite: true }] },
-  'tamper-detection': { scene: 'chain', parts: [{ try: false }, {}, {}, {}, { rewrite: true }] },
-  'merkle-trees': { scene: 'merkle', parts: [{ try: false }, {}, { mode: 'proof' }, { mode: 'proof' }, { mode: 'swap' }] },
-  'why-rewriting-must-cost': {
-    scene: 'mining',
-    parts: [{ mode: 'chain', rewrite: true }, { mode: 'chain', rewrite: true }, { mode: 'chain', work: true }, { mode: 'chain', work: true }, { mode: 'race' }],
-  },
-  nonce: { scene: 'mining', parts: [{ mode: 'search', try: false }, { mode: 'search' }, { mode: 'search' }, { mode: 'search', zeros: true }] },
-  'difficulty-and-rewards': {
-    scene: 'mining',
-    parts: [{ mode: 'race', crowd: true }, { mode: 'search', zeros: true }, { mode: 'search', zeros: true }, { mode: 'race', zeros: true }],
-  },
-  nodes: { scene: 'lanes', parts: [{ mode: 'copies', try: false }, { mode: 'copies' }, { mode: 'copies', bad: true }, { mode: 'copies', lag: true }, { mode: 'copies', bad: true }] },
-  'double-spending': { scene: 'lanes', parts: [{ mode: 'attack', try: false }, { mode: 'attack' }, { mode: 'attack' }, { mode: 'attack' }, { mode: 'confirm' }] },
-  'proof-of-stake': { scene: 'stake', parts: [{ try: false }, { mode: 'vote' }, { mode: 'slash' }] },
-}
-
-const FULL: ScenePart = {}
+const HELLO = "Scroll down and I'll walk you through it. Try things in the boxes, and ask me anything on the way!"
+const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 export default function GenericLesson(props: LessonProps) {
-  const steps = props.moon.dialogue_steps
-  const entry = props.planetId === 'blockchain' ? SCENES[props.moon.id] : undefined
-  const renderStage = (active: number) => {
-    if (entry) {
-      const parts = entry.parts ?? []
-      return <Scene scene={entry.scene} part={parts[Math.min(active, parts.length - 1)] ?? FULL} />
-    }
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
-        <div className="h-24 w-24"><Algo /></div>
-        <p className="font-display text-lg">{steps[active]?.title ?? 'Quick check'}</p>
-      </div>
-    )
-  }
-  return <StoryLayout {...props} renderStage={renderStage} />
-}
+  const { planetId, moon } = props
+  const make = planetId === 'blockchain' ? SCENES[moon.id] : undefined
+  const steps = moon.dialogue_steps
 
-/** Hosts a storyKit scene (plain DOM, like the story lessons) and tells it which part the story is at */
-function Scene({ scene, part }: { scene: SceneName; part: ScenePart }) {
-  const ref = useRef<HTMLDivElement>(null)
-  const live = useRef<ReturnType<typeof mountScene> | null>(null)
+  const [reaction, setReaction] = useState<Reaction>({ text: HELLO, key: 0 })
+  const say = useCallback((text: string) => setReaction({ text, key: Date.now() }), [])
+  const [active, setActive] = useState(0)
 
+  const stageRef = useRef<HTMLDivElement>(null)
+  const capRef = useRef<HTMLParagraphElement>(null)
+  const slots = useRef<(HTMLDivElement | null)[]>([])
+  const scene = useRef<MoonScene | null>(null)
+  const activeRef = useRef(0)
+
+  // Mount the moon's scene once, fill every part's "Try it" box, and show the part in view
   useEffect(() => {
-    const s = mountScene(ref.current!, scene)
-    live.current = s
-    return () => { s.destroy(); live.current = null }
-  }, [scene])
-  useEffect(() => { live.current?.set(part) }, [scene, part])
+    const stage = stageRef.current
+    if (!make || !stage) return
+    const s = make(stage, { say, motion: !reducedMotion() })
+    scene.current = s
+    const boxes = slots.current
+    boxes.forEach((el, k) => el && s.tryIt(k, el))
+    s.show(activeRef.current)
+    if (capRef.current) capRef.current.textContent = s.caption(activeRef.current)
+    return () => {
+      s.stop()
+      scene.current = null
+      stage.innerHTML = ''
+      boxes.forEach((el) => el && (el.innerHTML = ''))
+    }
+  }, [make, moon.id, say])
 
-  return <div ref={ref} className="nv gscene" />
+  const onStepChange = (k: number) => {
+    activeRef.current = k
+    setActive(k)
+    scene.current?.show(k)
+    if (scene.current && capRef.current) capRef.current.textContent = scene.current.caption(k)
+  }
+
+  const stage = make
+    ? <><div ref={stageRef} className="scene gs-host" /><p ref={capRef} className="i1-cap" aria-live="polite" /></>
+    : (
+      <>
+        <div className="scene gs-host">
+          <div className="gs gs-plain"><div className="gs-algo"><Algo /></div><p className="gs-big"><b>{steps[active]?.title ?? moon.title}</b></p></div>
+        </div>
+        <p className="i1-cap">{moon.summary}</p>
+      </>
+    )
+
+  return (
+    <StoryLayout
+      {...props}
+      stage={stage}
+      renderExtra={make ? (k) => <div ref={(el) => { slots.current[k] = el }} /> : undefined}
+      onStepChange={onStepChange}
+      reaction={reaction}
+      say={say}
+      nextUp={nextUp(planetId, moon.id)}
+    />
+  )
 }

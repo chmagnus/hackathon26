@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState } from 'react'
 import AlgoChat, { type Reaction } from '../AlgoChat'
 import type { LessonProps } from '../StoryLayout'
-import { NAMES, balances, makeQuiz, makeScene, selP, sleep, type Line, type Name } from './storyKit'
+import { NAMES, balances, makeQuiz, makeScene, navHTML, selP, sleep, storyParts, type Line, type Name } from './storyKit'
 import '../story.css'
 
 /** Nib's pre-written answers from the prototype, now Algo's */
@@ -48,10 +48,10 @@ export default function SharedLedgerStory({ planetId, moon, onBack, onComplete }
       { h: 'Anyone can add a line', b: `<p>The ledger lives somewhere everyone can see, like a shared web page. <b>Anyone can add a line.</b> Add one yourself:</p><div class="inl">${selP('i1f', 'Charlie')} pays ${selP('i1t', 'Alice')} <select id="i1a" aria-label="Amount"><option>5</option><option selected>10</option><option>30</option></select><button class="btn gold sm" id="i1add">Add line</button></div>` },
       { h: 'Settle up at the end of the month', b: `<p>Once a month they <b>settle up</b>. Everyone adds up what they paid out and what they received.</p><p>Paid out more than you got? You put the difference <b>into a pot</b>. Got more? You <b>take it out</b>. Then everyone's even.</p><button class="btn gold" id="i1settle">Settle up the month</button><div id="i1sq" style="margin-top:14px"></div>` },
       { h: 'Make the list the money', b: `<p>What if Charlie racks up a huge debt and never shows up? New rules: <b>everyone starts with 100</b> on the ledger, and <b>you can't spend more than you have</b>.</p><p>Charlie has already paid out 80, so he has 20 left. Try it:</p><div class="inl">Charlie pays Bob <select id="i1c" aria-label="Amount"><option>10</option><option>20</option><option selected>40</option></select><button class="btn gold sm" id="i1try">Try payment</button></div><p class="fb" id="i1cr" hidden></p><div class="kbox"><b>Key idea</b><span>Now the list itself is the money. To check any payment, you need the whole history.</span></div>` },
-      { h: 'The hole in our plan', b: `<p>There's still a big problem. The ledger is public, so what stops <b>Bob</b> from writing <b>“Alice pays Bob 100”</b> without asking her?</p><button class="btn danger" id="i1forge">Let Bob sneak a line in</button><div id="i1q" style="margin-top:16px"></div><div class="donebar" id="i1done" hidden><button class="btn go" id="i1complete">Complete moon 1</button><span class="down">Next up: hashing.</span></div>` },
+      { h: 'The hole in our plan', b: `<p>There's still a big problem. The ledger is public, so what stops <b>Bob</b> from writing <b>“Alice pays Bob 100”</b> without asking her?</p><button class="btn danger" id="i1forge">Let Bob sneak a line in</button><div id="i1q" style="margin-top:16px"></div><div class="donebar" id="i1done" hidden><button class="btn go" id="i1complete">Complete moon</button><span class="down">Next up: hashing.</span></div>` },
     ]
     main.innerHTML = `<div class="i1"><div class="i1-story"><div class="prog1"><i id="i1p"></i></div>${SEC.map((s, i) => `<section class="sec" data-k="${i}"><span class="secn">Part ${i + 1} of ${SEC.length}</span><h2>${s.h}</h2>${s.b}</section>`).join('')}</div>
-      <div class="i1-stage"><div id="i1scene"></div><p class="i1-cap" id="i1cap"></p></div></div>`
+      <div class="i1-stage"><div id="i1scene"></div><p class="i1-cap" id="i1cap"></p>${navHTML}</div></div>`
     const sc = makeScene($('i1scene'))
     let active = -1
     const cap = (t: string) => ($('i1cap').textContent = t)
@@ -68,6 +68,9 @@ export default function SharedLedgerStory({ planetId, moon, onBack, onComplete }
       active = k; sc.hush(); sc.hl(null); sc.pot(null)
       main.querySelectorAll<HTMLElement>('.sec').forEach((s) => s.classList.toggle('on', +s.dataset.k! === k))
       $('i1p').style.width = ((k + 1) / SEC.length) * 100 + '%'
+      $('spart').textContent = `Part ${k + 1} of ${SEC.length}`
+      $<HTMLButtonElement>('sback').disabled = k === 0
+      $<HTMLButtonElement>('snext').disabled = k === SEC.length - 1
       if (k === 0) {
         sc.hideBook(); sc.bal(null); cap('Money moves all the time…')
         ;(async () => {
@@ -81,9 +84,12 @@ export default function SharedLedgerStory({ planetId, moon, onBack, onComplete }
       if (k === 5) { sc.lines(st.money.concat(st.forged ? [forgedLine] : []), st.forged ? st.money.length : null); sc.bal(balances(st.money)); sc.hl('Bob'); cap('Bob is looking at that ledger…') }
     }
 
-    const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) apply(+(e.target as HTMLElement).dataset.k!) }), { root: main, rootMargin: '-35% 0px -55% 0px' })
-    main.querySelectorAll('.sec').forEach((s) => io.observe(s))
+    const parts = storyParts(main, apply)
     apply(0)
+
+    // Back/Next: scroll the story to the previous/next part (the observer then updates everything else)
+    $('sback').onclick = () => parts.go(-1)
+    $('snext').onclick = () => parts.go(1)
 
     $<HTMLSelectElement>('i1amt').onchange = (e) => { st.iou[0].a = +(e.target as HTMLSelectElement).value; sc.lines(st.iou, 0); sc.coin('Alice', 'Bob') }
     $('i1add').onclick = () => {
@@ -128,7 +134,7 @@ export default function SharedLedgerStory({ planetId, moon, onBack, onComplete }
     }
     $('i1complete').onclick = () => complete.current?.(moon.id)
 
-    return () => { alive = false; io.disconnect() }
+    return () => { alive = false; parts.stop() }
   }, [moon.id])
 
   return (

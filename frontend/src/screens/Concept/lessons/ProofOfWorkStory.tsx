@@ -7,7 +7,7 @@
 import { useEffect, useRef, useState } from 'react'
 import AlgoChat, { type Reaction } from '../AlgoChat'
 import type { LessonProps } from '../StoryLayout'
-import { MINERS, ZERO, bstr, chainHTML, esc, hashHTML, makeChain, makeHashScene, makeQuiz, raceHTML, raceMiners, sha256, sleep, valid, type RaceResult } from './storyKit'
+import { MINERS, ZERO, bstr, chainHTML, esc, hashHTML, makeChain, makeHashScene, makeQuiz, navHTML, raceHTML, raceMiners, sha256, sleep, storyParts, valid, type RaceResult } from './storyKit'
 import '../story.css'
 
 /** Nib's pre-written answers for this moon from the prototype (plus two more), now Algo's */
@@ -37,7 +37,7 @@ export default function ProofOfWorkStory({ planetId, moon, onBack, onComplete }:
     if (!main) return
     const algoSay = (t: string) => say.current(t)
     let alive = true
-    let io: IntersectionObserver | undefined
+    let parts: ReturnType<typeof storyParts> | undefined
 
     const $ = <T extends HTMLElement = HTMLElement>(id: string) => main.querySelector(`#${id}`) as T
     const quiz = makeQuiz(algoSay)
@@ -67,10 +67,9 @@ export default function ProofOfWorkStory({ planetId, moon, onBack, onComplete }:
       ]
       main.innerHTML = `<div class="i1"><div class="i1-story"><div class="prog1"><i id="sp"></i></div>${SEC.map((s, i) => `<section class="sec" data-k="${i}"><span class="secn">Part ${i + 1} of ${SEC.length}</span><h2>${s.h}</h2>${s.b}</section>`).join('')}</div>
         <div class="i1-stage"><div id="sscene"></div><p class="i1-cap" id="scap"></p>
-          <div class="snav"><button class="btn sm" id="sback">← Back</button><span id="spart"></span><button class="btn sm" id="snext">Next →</button></div></div></div>`
+          ${navHTML}</div></div>`
       const sc = makeHashScene($('sscene'))
       let active = -1
-      let aim = -1 // the part Back/Next is scrolling to
       const cap = (t: string) => ($('scap').textContent = t)
 
 
@@ -91,7 +90,7 @@ export default function ProofOfWorkStory({ planetId, moon, onBack, onComplete }:
 
       const apply = (k: number) => {
         if (k === active) return
-        active = k; aim = -1
+        active = k
         main.querySelectorAll<HTMLElement>('.sec').forEach((s) => s.classList.toggle('on', +s.dataset.k! === k))
         $('sp').style.width = ((k + 1) / SEC.length) * 100 + '%'
         $('spart').textContent = `Part ${k + 1} of ${SEC.length}`
@@ -107,21 +106,12 @@ export default function ProofOfWorkStory({ planetId, moon, onBack, onComplete }:
         ][k])
       }
 
-      io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) apply(+(e.target as HTMLElement).dataset.k!) }), { root: main, rootMargin: '-35% 0px -55% 0px' })
-      main.querySelectorAll('.sec').forEach((s) => io!.observe(s))
+      parts = storyParts(main, apply)
       apply(0)
 
-      // Back/Next: scroll the story to the previous/next part (the observer then updates everything else).
-      // Counts from the part it's already heading to, so quick double clicks during the smooth scroll still move on.
-      const go = (step: number) => {
-        const k = Math.min(SEC.length - 1, Math.max(0, (aim >= 0 ? aim : active) + step))
-        const sec = main.querySelector<HTMLElement>(`.sec[data-k="${k}"]`)
-        if (!sec) return
-        aim = k
-        main.scrollTo({ top: main.scrollTop + sec.getBoundingClientRect().top - main.getBoundingClientRect().top })
-      }
-      $('sback').onclick = () => go(-1)
-      $('snext').onclick = () => go(1)
+      // Back/Next: scroll the story to the previous/next part (the observer then updates everything else)
+      $('sback').onclick = () => parts?.go(-1)
+      $('snext').onclick = () => parts?.go(1)
 
       // Part 1: try nonces one by one (or let the computer do it) until the hash starts with 00
       let mineRun = 0 // bumped to stop "Mine automatically"
@@ -257,7 +247,7 @@ export default function ProofOfWorkStory({ planetId, moon, onBack, onComplete }:
     }
 
     setup(main)
-    return () => { alive = false; io?.disconnect() }
+    return () => { alive = false; parts?.stop() }
   }, [moon.id])
 
   return (

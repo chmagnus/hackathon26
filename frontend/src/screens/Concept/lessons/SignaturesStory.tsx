@@ -7,7 +7,7 @@
 import { useEffect, useRef, useState } from 'react'
 import AlgoChat, { type Reaction } from '../AlgoChat'
 import type { LessonProps } from '../StoryLayout'
-import { NAMES, esc, makeQuiz, makeScene, sha256, sleep, type Line, type Name } from './storyKit'
+import { NAMES, esc, makeQuiz, makeScene, navHTML, sha256, sleep, storyParts, type Line, type Name } from './storyKit'
 import '../story.css'
 
 /** Nib's pre-written answers for this moon from the prototype (plus two more), now Algo's */
@@ -29,7 +29,7 @@ const randomSig = () => [...crypto.getRandomValues(new Uint8Array(12))].map((b) 
 
 export default function SignaturesStory({ planetId, moon, onBack, onComplete }: LessonProps) {
   const mainRef = useRef<HTMLElement>(null)
-  const [reaction, setReaction] = useState<Reaction>({ text: "Last time, Bob found a hole in the ledger. Let's fix it! Scroll down, and ask me anything on the way.", key: 0 })
+  const [reaction, setReaction] = useState<Reaction>({ text: "Remember Bob sneaking a fake line into the ledger? Today we stop him! Scroll down, and ask me anything on the way.", key: 0 })
 
   // Keep the latest callbacks without re-running the setup
   const say = useRef((text: string) => setReaction({ text, key: Date.now() }))
@@ -41,7 +41,7 @@ export default function SignaturesStory({ planetId, moon, onBack, onComplete }: 
     if (!main) return
     const algoSay = (t: string) => say.current(t)
     let alive = true
-    let io: IntersectionObserver | undefined
+    let parts: ReturnType<typeof storyParts> | undefined
 
     const $ = <T extends HTMLElement = HTMLElement>(id: string) => main.querySelector(`#${id}`) as T
     const quiz = makeQuiz(algoSay)
@@ -81,10 +81,9 @@ export default function SignaturesStory({ planetId, moon, onBack, onComplete }: 
       ]
       main.innerHTML = `<div class="i1"><div class="i1-story"><div class="prog1"><i id="sp"></i></div>${SEC.map((s, i) => `<section class="sec" data-k="${i}"><span class="secn">Part ${i + 1} of ${SEC.length}</span><h2>${s.h}</h2>${s.b}</section>`).join('')}</div>
         <div class="i1-stage"><div id="sscene"></div><p class="i1-cap" id="scap"></p>
-          <div class="snav"><button class="btn sm" id="sback">← Back</button><span id="spart"></span><button class="btn sm" id="snext">Next →</button></div></div></div>`
+          ${navHTML}</div></div>`
       const sc = makeScene($('sscene'))
       let active = -1
-      let aim = -1 // the part Back/Next is scrolling to
       const cap = (t: string) => ($('scap').textContent = t)
 
       // what the paper card in the scene shows for parts 3 and 4
@@ -94,7 +93,7 @@ export default function SignaturesStory({ planetId, moon, onBack, onComplete }: 
 
       const apply = (k: number) => {
         if (k === active) return
-        active = k; aim = -1; sc.hush(); sc.hl(null)
+        active = k; sc.hush(); sc.hl(null)
         main.querySelectorAll<HTMLElement>('.sec').forEach((s) => s.classList.toggle('on', +s.dataset.k! === k))
         $('sp').style.width = ((k + 1) / SEC.length) * 100 + '%'
         $('spart').textContent = `Part ${k + 1} of ${SEC.length}`
@@ -114,21 +113,12 @@ export default function SignaturesStory({ planetId, moon, onBack, onComplete }: 
         if (k === 5) { sc.lines(st.signedLines); cap('Signed, one-of-a-kind payments only.') }
       }
 
-      io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) apply(+(e.target as HTMLElement).dataset.k!) }), { root: main, rootMargin: '-35% 0px -55% 0px' })
-      main.querySelectorAll('.sec').forEach((s) => io!.observe(s))
+      parts = storyParts(main, apply)
       apply(0)
 
-      // Back/Next: scroll the story to the previous/next part (the observer then updates everything else).
-      // Counts from the part it's already heading to, so quick double clicks during the smooth scroll still move on.
-      const go = (step: number) => {
-        const k = Math.min(SEC.length - 1, Math.max(0, (aim >= 0 ? aim : active) + step))
-        const sec = main.querySelector<HTMLElement>(`.sec[data-k="${k}"]`)
-        if (!sec) return
-        aim = k
-        main.scrollTo({ top: main.scrollTop + sec.getBoundingClientRect().top - main.getBoundingClientRect().top })
-      }
-      $('sback').onclick = () => go(-1)
-      $('snext').onclick = () => go(1)
+      // Back/Next: scroll the story to the previous/next part (the observer then updates everything else)
+      $('sback').onclick = () => parts?.go(-1)
+      $('snext').onclick = () => parts?.go(1)
 
       // Part 1: Bob forges a line
       $<HTMLButtonElement>('s0forge').onclick = () => {
@@ -219,7 +209,7 @@ export default function SignaturesStory({ planetId, moon, onBack, onComplete }: 
     }
 
     setup(main)
-    return () => { alive = false; io?.disconnect() }
+    return () => { alive = false; parts?.stop() }
   }, [moon.id])
 
   return (

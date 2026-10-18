@@ -10,6 +10,7 @@
  *  - onOpenMoon(id):  a [[moon-id]] link was clicked -> open that moon instead
  */
 import { useEffect, useState, type ComponentType } from 'react'
+import Algo from './Algo'
 import { fetchMoon, type Moon } from './moonApi'
 import type { LessonProps } from './StoryLayout'
 import GenericLesson from './lessons/GenericLesson'
@@ -18,6 +19,7 @@ import LongestChainStory from './lessons/LongestChainStory'
 import ProofOfWorkStory from './lessons/ProofOfWorkStory'
 import SharedLedgerStory from './lessons/SharedLedgerStory'
 import SignaturesStory from './lessons/SignaturesStory'
+import './story.css'
 
 /** Moons with their own interactive scene. Anything else uses GenericLesson. */
 const LESSONS: Record<string, ComponentType<LessonProps>> = {
@@ -51,38 +53,55 @@ type ConceptScreenProps = Omit<LessonProps, 'moon' | 'planetId'> & {
   moonId: string
 }
 
-type Loaded = { moonId: string; moon: Moon | null; error: string | null }
+type Loaded = { moonId: string; tries: number; moon: Moon | null; error: string | null }
 
 export default function ConceptScreen({ planetId = 'blockchain', moonId, ...handlers }: ConceptScreenProps) {
   const [loaded, setLoaded] = useState<Loaded | null>(null)
+  const [tries, setTries] = useState(0) // bumped by "Try again"
 
   useEffect(() => {
     let cancelled = false
     fetchMoon(planetId, moonId)
-      .then((moon) => !cancelled && setLoaded({ moonId, moon, error: null }))
-      .catch((e: Error) => !cancelled && setLoaded({ moonId, moon: null, error: e.message }))
+      .then((moon) => !cancelled && setLoaded({ moonId, tries, moon, error: null }))
+      .catch((e: Error) => !cancelled && setLoaded({ moonId, tries, moon: null, error: e.message }))
     return () => { cancelled = true }
-  }, [planetId, moonId])
+  }, [planetId, moonId, tries])
 
-  const current = loaded?.moonId === moonId ? loaded : null
+  const current = loaded?.moonId === moonId && loaded.tries === tries ? loaded : null
   // backend has nothing for this moon: a standalone lesson still opens with the basics
   const standalone = current?.error ? STANDALONE[moonId] : undefined
   const moon = current?.moon ?? (standalone ? minimalMoon(moonId, standalone) : null)
 
   if (!moon) {
+    // a 404 means the lesson isn't written yet; anything else means the lesson server didn't answer
+    const missing = !!current?.error && /\(404\)/.test(current.error)
+    const title = !current ? 'Loading…' : missing ? 'Not ready yet' : "Can't reach the lessons"
     return (
-      <div className="flex h-full flex-col bg-void text-ink">
-        <header className="flex items-center gap-5 border-b border-white/10 px-5 py-4">
-          {handlers.onBack && (
-            <button onClick={handlers.onBack} className="rounded-xl border border-white/15 px-4 py-2 font-bold cursor-pointer hover:border-white/40">
-              ← Moons
-            </button>
-          )}
-          <h1 className="font-display text-2xl font-semibold tracking-wide">{current?.error ? 'Not ready yet' : 'Loading…'}</h1>
+      <div className="nv cpage">
+        <header className="cbar">
+          {handlers.onBack && <button className="btn sm" onClick={handlers.onBack}>← Moons</button>}
+          <div className="cbar-t">
+            <span className="eyebrow">{planetId}</span>
+            <h1>{title}</h1>
+          </div>
         </header>
-        <p className="px-5 py-20 text-center text-muted">
-          {current?.error ? "This moon's lesson isn't written yet. Check back soon!" : 'Loading the lesson…'}
-        </p>
+        <main className="cmain">
+          <div className="cmsg">
+            <div className="cmsg-algo"><Algo mood={current ? 'idle' : 'thinking'} /></div>
+            {!current && <p>Loading the lesson…</p>}
+            {missing && <p>This moon's lesson isn't written yet. Check back soon!</p>}
+            {current && !missing && (
+              <>
+                <p>Algo can't reach the lesson library right now, so this moon's story can't load.</p>
+                <p className="down">If you're running Nova yourself, check that the backend is running, then try again.</p>
+                <div className="row">
+                  <button className="btn go" onClick={() => setTries((t) => t + 1)}>Try again</button>
+                  {handlers.onBack && <button className="btn" onClick={handlers.onBack}>Back to the moons</button>}
+                </div>
+              </>
+            )}
+          </div>
+        </main>
       </div>
     )
   }
