@@ -4,6 +4,7 @@
  * When all of a planet's moons are finished, it gets pulled into orbit around your star.
  *
  * Plug-in points for the rest of the app:
+ *  - moonCounts: how many moons each planet with lessons has. Those planets are live; the rest are "coming soon".
  *  - completedMoons / captured / justCaptured: progress from the shared state (whoever owns it)
  *  - onSelectPlanet(id): called once the camera has arrived at the clicked planet (the Moon overlay shows from there).
  *    Only live planets fly in; "coming soon" ones just show a toast.
@@ -12,7 +13,7 @@
  * The 3D scene is drawn in the shared Universe canvas (src/galaxy), which must be mounted alongside this screen;
  * this component is the 2D overlay on top of it.
  */
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { universeLabelRoot } from '../../galaxy/labelRoot'
 import { InUniverse } from '../../galaxy/tunnel'
 import { useView } from '../../galaxy/view'
@@ -21,6 +22,7 @@ import { HOME_PLANETS, type PlanetId } from './planets'
 import { playPlanetClick } from '../../shared/sounds'
 
 export interface HomeScreenProps {
+  moonCounts?: Partial<Record<PlanetId, number>>
   completedMoons?: Partial<Record<PlanetId, number>>
   captured?: PlanetId[]
   justCaptured?: PlanetId | null
@@ -36,6 +38,11 @@ const writeName = (v: string) => {
 }
 
 export function HomeScreen(props: HomeScreenProps) {
+  // without moonCounts, the demo values in planets.ts decide which planets are live
+  const { moonCounts } = props
+  const planets = useMemo(() => !moonCounts ? HOME_PLANETS : HOME_PLANETS.map((p) => (
+    { ...p, live: !!moonCounts[p.id], moons: moonCounts[p.id] ?? p.moons }
+  )), [moonCounts])
   // demo progress, used only when the parent doesn't pass real progress
   const [demoCaptured, setDemoCaptured] = useState<PlanetId[]>([])
   const [demoJust, setDemoJust] = useState<PlanetId | null>(null)
@@ -63,7 +70,7 @@ export function HomeScreen(props: HomeScreenProps) {
   function selectPlanet(id: PlanetId) {
     if (focusId) return
     playPlanetClick()
-    const planet = HOME_PLANETS.find((p) => p.id === id)!
+    const planet = planets.find((p) => p.id === id)!
     if (!planet.live) {
       showToast(`${planet.name} is coming soon.`)
       return
@@ -101,7 +108,7 @@ export function HomeScreen(props: HomeScreenProps) {
     // While faded, its panels and buttons can't be clicked either (overrides their pointer-events-auto).
     <div className={`pointer-events-none absolute inset-0 overflow-hidden font-body text-ink transition-[opacity,visibility] duration-300 ${zoomStarted ? 'invisible opacity-0 *:pointer-events-none!' : ''}`}>
       <InUniverse>
-        <HomeScene completedMoons={completedMoons} captured={captured} justCaptured={justCaptured} labelsHidden={labelsHidden} onPlanetClick={selectPlanet} labelRoot={universeLabelRoot} />
+        <HomeScene planets={planets} completedMoons={completedMoons} captured={captured} justCaptured={justCaptured} labelsHidden={labelsHidden} onPlanetClick={selectPlanet} labelRoot={universeLabelRoot} />
       </InUniverse>
 
       {/* user chip (top-left, as in the whiteboard sketch) */}

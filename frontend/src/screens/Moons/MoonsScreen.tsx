@@ -6,8 +6,11 @@
  * Click an unlocked moon: the orbits freeze, the camera flies to it, and its concepts are listed.
  *
  * Plug-in points:
- *  - planet: will come from GET /api/systems/{id}. Until then the mock blockchain planet is used.
- *  - progress: will come from the shared progress store. Until then mock progress is used.
+ *  - planet: from GET /api/systems/{id} (App passes it). Without it the mock blockchain planet is used.
+ *  - progress / onCompleteMoon(moonId): the planet's saved progress, and a concept was completed on its page.
+ *    Without them, mock progress is used and completions only last this session.
+ *  - onEditMoon(moonId, body | null): save (or with null, undo) a rewrite of a lesson's text from the "Hash chain"
+ *    panel. The panel only exists on planets the backend sealed into a hash chain, and only when this is given.
  *  - onSelectChapter(orbitNumber): called once the camera has arrived at a chapter moon.
  *  - renderConcept(moonId, handlers): renders the Concept page for a picked concept. The card-expands transition
  *    in and out of it is handled here (useConceptTransition); `handlers` (onBack/onComplete/onOpenMoon) go to the page.
@@ -18,10 +21,12 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { InUniverse } from '../../galaxy/tunnel'
 import { useView } from '../../galaxy/view'
 import { playMoonClick } from '../../shared/sounds'
+import { ChainPanel } from './ChainPanel'
 import { ChapterPanel } from './ChapterPanel'
 import { chapterState, type ChapterProgress } from './chapters'
 import { ConceptLayer } from './ConceptLayer'
 import { useConceptTransition, type ConceptHandlers } from './useConceptTransition'
+import { useChainCheck } from './useChainCheck'
 import { MoonSystem } from './MoonSystem'
 import { MoonsHud } from './MoonsHud'
 import { MOCK_PLANET } from './mockPlanet'
@@ -29,22 +34,33 @@ import { MOCK_PROGRESS } from './mockProgress'
 import type { Planet } from './types'
 
 const TOAST_MS = 4000
+const NO_EDITS: Record<string, string> = {}
 
 export interface MoonsScreenProps {
   planet?: Planet
   progress?: ChapterProgress
   onSelectChapter?: (orbitNumber: number) => void
   onSelectMoon?: (moonId: string) => void
+  onCompleteMoon?: (moonId: string) => void
+  onEditMoon?: (moonId: string, body: string | null) => void
   renderConcept?: (moonId: string, handlers: ConceptHandlers) => ReactNode
 }
 
 const logMoon = (moonId: string) => console.log('select moon', moonId)
 
-export function MoonsScreen({ planet = MOCK_PLANET, progress: initialProgress = MOCK_PROGRESS, onSelectChapter, onSelectMoon = logMoon, renderConcept }: MoonsScreenProps) {
-  // concepts completed on the Concept page this session (until the shared progress store exists)
+export function MoonsScreen({ planet = MOCK_PLANET, progress: initialProgress = MOCK_PROGRESS, onSelectChapter, onSelectMoon = logMoon, onCompleteMoon, onEditMoon, renderConcept }: MoonsScreenProps) {
+  // concepts completed on the Concept page this session, when no onCompleteMoon saves them
   const [justCompleted, setJustCompleted] = useState<string[]>([])
   const progress: ChapterProgress = { completed: [...new Set([...initialProgress.completed, ...justCompleted])] }
   const states = planet.orbits.map((orbit) => chapterState(orbit, planet.orbits, progress))
+
+  // chapters holding a lesson that no longer matches the hash chain. An edit breaks every lesson after it too.
+  const edits = initialProgress.edits ?? NO_EDITS
+  const chain = useChainCheck(planet, edits)
+  const brokenIds = new Set(chain.result?.moons.filter((m) => !m.valid).map((m) => m.id))
+  const broken = planet.orbits.map((orbit) => orbit.moons.some((m) => brokenIds.has(m.id)))
+  // the "Hash chain" panel; it and the chapter panel take turns (they share the bottom of the screen on phones)
+  const [chainOpen, setChainOpen] = useState(false)
 
   const view = useView((s) => s.view)
   const zoomedIn = useView((s) => s.zoomedIn)
@@ -76,6 +92,7 @@ export function MoonsScreen({ planet = MOCK_PLANET, progress: initialProgress = 
       showToast(`Finish chapter ${next} first to unlock this one`)
       return
     }
+    setChainOpen(false)
     // whoosh only when the camera actually starts flying to a new moon
     if (chapter !== orbitNumber) {
       playMoonClick()
@@ -93,10 +110,15 @@ export function MoonsScreen({ planet = MOCK_PLANET, progress: initialProgress = 
   // close the chapter: the camera flies back to the planet view and the orbits resume
   const close = () => setChapter(null)
 
+  function toggleChain() {
+    if (!chainOpen) close()
+    setChainOpen(!chainOpen)
+  }
+
   // opening a concept page from the panel, with the card-expands transition
   const concept = useConceptTransition({
     moons: focusedOrbit?.moons ?? [],
-    onCompleted: (id) => setJustCompleted((d) => (d.includes(id) ? d : [...d, id])),
+    onCompleted: (id) => onCompleteMoon ? onCompleteMoon(id) : setJustCompleted((d) => (d.includes(id) ? d : [...d, id])),
   })
   const { phase: conceptPhase, close: closeConcept } = concept
   function selectMoon(moonId: string, rect: DOMRect) {
@@ -104,35 +126,56 @@ export function MoonsScreen({ planet = MOCK_PLANET, progress: initialProgress = 
     else onSelectMoon(moonId)
   }
 
-  // Escape: back from the concept page, else close the open chapter, else go back to the universe (same as "← Universe").
-  // Ignored while a concept transition is running.
+  // Escape: back from the concept page, else close the chain panel or the open chapter, else go back to the universe
+  // (same as "← Universe"). Ignored while a concept transition is running.
   useEffect(() => {
     if (!atPlanet) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
       if (conceptPhase === 'open') closeConcept()
       else if (conceptPhase !== 'closed') return
+      else if (chainOpen) setChainOpen(false)
       else if (chapter !== null) setChapter(null)
       else setView({ mode: 'universe' })
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [atPlanet, chapter, setChapter, setView, conceptPhase, closeConcept])
+  }, [atPlanet, chapter, setChapter, setView, conceptPhase, closeConcept, chainOpen])
 
   return (
     <>
       <InUniverse>
-        <MoonSystem planet={planet} states={states} onSelectChapter={selectChapter} />
+        <MoonSystem planet={planet} states={states} broken={broken} onSelectChapter={selectChapter} />
       </InUniverse>
 
       {/* overlay on top of the Universe canvas: lets the pointer through, except on its own panels and buttons */}
       <div className={`pointer-events-none absolute inset-0 overflow-hidden font-body text-ink transition-[opacity,visibility] duration-500 ${here ? '' : 'invisible opacity-0'}`}>
-        <MoonsHud planet={planet} states={states} onBack={() => setView({ mode: 'universe' })} hideHint={chapter !== null} />
+        <MoonsHud
+          planet={planet}
+          states={states}
+          onBack={() => setView({ mode: 'universe' })}
+          hideHint={chapter !== null || chainOpen}
+          chain={chain.sealed && onEditMoon ? { open: chainOpen, broken: broken.includes(true), onToggle: toggleChain } : undefined}
+        />
+
+        {chainOpen && chain.sealed && onEditMoon && (
+          <ChainPanel
+            planet={planet}
+            edits={edits}
+            result={chain.result}
+            checking={chain.checking}
+            failed={chain.failed}
+            onEdit={onEditMoon}
+            onClose={() => setChainOpen(false)}
+          />
+        )}
 
         {focusedOrbit && (
           <ChapterPanel
             orbit={focusedOrbit}
             completed={progress.completed}
+            edited={Object.keys(edits)}
+            broken={[...brokenIds]}
             onSelectMoon={selectMoon}
             onClose={close}
             expandingId={concept.expandingId}

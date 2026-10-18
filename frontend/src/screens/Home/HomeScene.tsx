@@ -8,10 +8,12 @@ import { useFrame } from '@react-three/fiber'
 import { Html, Line } from '@react-three/drei'
 import * as THREE from 'three'
 import { planetPositions } from '../../galaxy/view'
-import { HOME_PLANETS, ORBIT_RADII, type HomePlanet, type PlanetId } from './planets'
+import { ORBIT_RADII, type HomePlanet, type PlanetId } from './planets'
 import { PlanetBody } from './PlanetBody'
 
 export interface HomeSceneProps {
+  /** every planet, in HOME_PLANETS order */
+  planets: HomePlanet[]
   completedMoons: Partial<Record<PlanetId, number>>
   /** planets in the user's orbit, in the order they were completed */
   captured: PlanetId[]
@@ -90,11 +92,11 @@ function DriftingPlanet({ planet, index, done, slot, animateIn, showLabel, label
 
 // the camera (intro, auto-rotate, fly to planet) is the shared rig in src/galaxy/CameraRig.tsx
 
-export function HomeScene({ completedMoons, captured, justCaptured, labelsHidden, onPlanetClick, labelRoot }: HomeSceneProps) {
+export function HomeScene({ planets, completedMoons, captured, justCaptured, labelsHidden, onPlanetClick, labelRoot }: HomeSceneProps) {
   return (
     <>
       {captured.map((id, slot) => <OrbitRing key={id} radius={ORBIT_RADII[slot]} />)}
-      {HOME_PLANETS.map((p, i) => (
+      {planets.map((p, i) => (
         <DriftingPlanet
           key={p.id}
           planet={p}

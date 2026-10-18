@@ -15,9 +15,11 @@ export interface MoonsHudProps {
   onBack?: () => void
   /** hide the bottom hint (e.g. while a chapter is focused) */
   hideHint?: boolean
+  /** the "Hash chain" button for a chain planet: whether its panel is open, and whether any record is broken */
+  chain?: { open: boolean; broken: boolean; onToggle: () => void }
 }
 
-export function MoonsHud({ planet, states, onBack, hideHint }: MoonsHudProps) {
+export function MoonsHud({ planet, states, onBack, hideHint, chain }: MoonsHudProps) {
   const currentIdx = states.indexOf('current')
   const current = currentIdx >= 0 ? planet.orbits[currentIdx] : null
   const done = states.filter((s) => s === 'completed').length
@@ -44,6 +46,17 @@ export function MoonsHud({ planet, states, onBack, hideHint }: MoonsHudProps) {
             ))}
           </div>
         </div>
+        {chain && (
+          <button
+            type="button"
+            aria-expanded={chain.open}
+            onClick={chain.onToggle}
+            className={`${EDGE} rounded-[10px] bg-glass px-3 py-[7px] text-[13.5px] font-bold backdrop-blur hover:brightness-125 active:translate-y-px ${chain.open ? 'bg-white/10' : ''} ${chain.broken ? 'text-coral' : 'text-ink'}`}
+          >
+            <span className={`mr-2 inline-block size-2 rounded-full ${chain.broken ? 'bg-coral' : 'bg-mint'}`} />
+            Hash chain
+          </button>
+        )}
       </div>
 
       {hint && !hideHint && (

@@ -8,6 +8,8 @@ export type ChapterState = 'locked' | 'current' | 'completed'
 /** The part of Nova's stored progress this screen needs (one planet's entry in `systems`). */
 export interface ChapterProgress {
   completed: string[]
+  /** the learner's rewrites of lesson text (moon id -> text), checked against the planet's hash chain */
+  edits?: Record<string, string>
 }
 
 function isFinished(orbit: Orbit, done: Set<string>): boolean {

@@ -30,6 +30,7 @@ Open <http://localhost:8000/docs>, or request:
 | `GET /api/systems` | All four planet summaries and their actual lesson counts |
 | `GET /api/systems/{system_id}` | Planet introduction, ordered chapters and all lessons |
 | `GET /api/systems/{system_id}/moons/{moon_id}` | One full lesson |
+| `POST /api/systems/{system_id}/verify` | The hash chain recomputed with proposed lesson edits |
 
 Examples:
 
@@ -45,9 +46,8 @@ shape. The tutor uses this same content registry automatically.
 
 `src/content_data.py` exports `SYSTEMS` and the planet constants. Authored content
 is separated into four files under `src/lessons/`; the small helpers there assemble
-it into the existing Pydantic models. There is no database, content loader, API
-schema change, or new dependency in this content update. Restart FastAPI after
-editing content unless using reload mode.
+it into the existing Pydantic models. There is no database or content loader.
+Restart FastAPI after editing content unless using reload mode.
 
 Blockchain has `chain: true`: its lessons form a real SHA-256 hash chain, built in
 `src/chain.py`. The star introduction is the genesis record (`star.hash`), and each
@@ -64,20 +64,31 @@ whitespace-only changes do not. Nothing is saved. Errors: `system_not_found` and
 `nonces` is accepted but reserved for the mining step. Widget fields remain null
 because reading and checkpoints are usable without an unfinished widget.
 
-The frontend now fetches the planet list and full planet responses through the
-Vite `/api` proxy to port 8000, passing real content and progress to `MoonsScreen`.
-Concept pages fetch the individual moon endpoint using both planet and moon IDs.
-Errors show a retry action rather than silently substituting old lesson copies.
+The frontend fetches the planet list and full planet responses through the Vite
+`/api` proxy to port 8000 on startup (`App.tsx`). Every planet with lessons is
+live on Home with its real moon count, and `MoonsScreen` gets the visited planet
+and its saved progress. Until the lessons arrive, or if the backend is down, the
+built-in Blockchain planet (`screens/Moons/mockPlanet.ts`, same moon IDs) stands
+in so the app still runs. Concept pages fetch the individual moon endpoint using
+both planet and moon IDs, and show a retry action if it fails.
 `dialogue_steps` renders through the team's story layout, including Markdown
 code blocks and internal lesson links. Chapter moons represent orbits; concepts
 inside each chapter are the API's `moons` list. Existing Blockchain IDs, including
 `ledgers` and `hashing`, are retained for navigation/progress compatibility.
 
-Local progress keeps `version`, `systems` (completed lesson IDs and edits), and
-`captured` (planet IDs in completion order). Older saved progress without capture
-order still loads. Complete a checkpoint to save a lesson; complete earlier
-chapters to unlock later ones. The backend supplies content, not accounts or
-server-side progress. API schemas and route paths are unchanged by integration.
+Local progress (`src/store/progress.ts`) keeps `version`, `systems` (completed
+lesson IDs and edits), and `captured` (planet IDs in completion order). Older
+saved progress without capture order still loads. Complete a checkpoint to save a
+lesson; complete earlier chapters to unlock later ones. Finishing a planet's last
+lesson captures it, and it is pulled into your orbit when you fly back out to the
+universe. The backend supplies content, not accounts or server-side progress.
+
+On a planet with a hash chain, the planet view's **Hash chain** panel lists the
+genesis record and every lesson's hash. **Tamper** saves a rewrite of a lesson's
+text to the progress `edits`; the frontend sends the planet's edits to `/verify`
+and shows which records no longer match, both in the panel and as red chapter
+moons on the ring and broken lessons in the chapter panel. **Restore** removes
+the edit. Without edits nothing is sent.
 
 Run content and API tests from the repository root:
 
