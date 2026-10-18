@@ -1,0 +1,11 @@
+# Python packages for the Cloudflare Worker (see wrangler.jsonc); pywrangler bundles them on deploy.
+# Pinned to the versions in requirements.txt, which local development and the tests still use.
+[project]
+name = "nova-api"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.143.3",
+    "httpx==0.28.1",
+    "python-dotenv==1.2.4",
+]
