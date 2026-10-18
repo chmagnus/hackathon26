@@ -68,6 +68,15 @@ export default function App() {
     }
   }
 
+  // Demo panel on Home: finish every moon of a planet at once. We're already in the universe, so it's pulled in right away.
+  function completePlanet(planetId: string) {
+    const target = planets.find((p) => p.id === planetId)
+    if (!target) return
+    const progress = useProgress.getState()
+    for (const moon of moonsOf(target)) progress.completeMoon(target.id, moon.id)
+    progress.capturePlanet(target.id)
+  }
+
   return (
     <div className="relative h-full overflow-hidden">
       <Universe />
@@ -76,6 +85,7 @@ export default function App() {
         completedMoons={completedMoons}
         captured={captured.filter((id): id is PlanetId => isPlanetId(id) && id !== arriving)}
         onResetProgress={Object.keys(systems).length || captured.length ? () => useProgress.getState().reset() : undefined}
+        onDemoComplete={completePlanet}
       />
       <MoonsScreen
         key={planet.id}
