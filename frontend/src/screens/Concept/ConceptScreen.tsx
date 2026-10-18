@@ -22,6 +22,20 @@ const LESSONS: Record<string, ComponentType<LessonProps>> = {
   hashing: HashingLesson,
 }
 
+/**
+ * Story lessons ported whole from the prototype carry their own text, so they still open when the backend
+ * has no data for the moon (or is down). They only need these few details.
+ * Lessons that read their story from the backend (like hashing) don't belong here.
+ */
+const STANDALONE: Record<string, { title: string; order: number }> = {
+  ledgers: { title: 'A shared ledger', order: 1 },
+}
+
+/** A stand-in moon with just the basics, for a standalone lesson the backend doesn't know about */
+function minimalMoon(id: string, { title, order }: { title: string; order: number }): Moon {
+  return { id, title, order, orbit: 0, summary: '', goal: '', body: '', dialogue_steps: [], check: { question: '', options: [], answer: '' }, nonce: 0 }
+}
+
 type ConceptScreenProps = Omit<LessonProps, 'moon' | 'planetId'> & {
   planetId?: string
   moonId: string
@@ -41,8 +55,11 @@ export default function ConceptScreen({ planetId = 'blockchain', moonId, ...hand
   }, [planetId, moonId])
 
   const current = loaded?.moonId === moonId ? loaded : null
+  // backend has nothing for this moon: a standalone lesson still opens with the basics
+  const standalone = current?.error ? STANDALONE[moonId] : undefined
+  const moon = current?.moon ?? (standalone ? minimalMoon(moonId, standalone) : null)
 
-  if (!current?.moon) {
+  if (!moon) {
     return (
       <div className="flex h-full flex-col bg-void text-ink">
         <header className="flex items-center gap-5 border-b border-white/10 px-5 py-4">
@@ -60,6 +77,6 @@ export default function ConceptScreen({ planetId = 'blockchain', moonId, ...hand
     )
   }
 
-  const Lesson = LESSONS[current.moon.id] ?? GenericLesson
-  return <Lesson key={current.moon.id} planetId={planetId} moon={current.moon} {...handlers} />
+  const Lesson = LESSONS[moon.id] ?? GenericLesson
+  return <Lesson key={moon.id} planetId={planetId} moon={moon} {...handlers} />
 }
