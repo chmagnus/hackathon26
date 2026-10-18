@@ -88,7 +88,7 @@ class GeminiProvider:
 
 
 class WorkersAIProvider:
-    """Cloudflare Workers AI via its REST API (works locally and when deployed)."""
+    """Cloudflare Workers AI via its REST API (works locally and when deployed), streamed with server-sent events."""
     name = "workers_ai"
 
     def __init__(self, settings):
@@ -103,13 +103,24 @@ class WorkersAIProvider:
         payload = {
             "messages": [{"role": "system", "content": system}, *messages],
             "max_tokens": 400,
+            "stream": True,
         }
         async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-            response = await client.post(
-                url, headers={"Authorization": f"Bearer {self.token}"}, json=payload
-            )
-        _raise_for_status(self.name, response)
-        yield response.json()["result"]["response"]
+            async with client.stream(
+                "POST", url, headers={"Authorization": f"Bearer {self.token}"}, json=payload
+            ) as response:
+                if response.status_code >= 400:
+                    await response.aread()
+                    _raise_for_status(self.name, response)
+                async for line in response.aiter_lines():
+                    if not line.startswith("data:"):
+                        continue
+                    data = line[len("data:"):].strip()
+                    if data == "[DONE]":
+                        return
+                    text = json.loads(data).get("response")
+                    if text:
+                        yield text
 
 
 PROVIDERS = {

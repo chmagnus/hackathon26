@@ -114,7 +114,6 @@ const avalanche: SceneMaker = (stage, ctx) => {
           st.flips = [...st.flips, n].slice(-6)
           t.q<HTMLElement>('list').textContent = 'Bits flipped: ' + st.flips.join(', ')
           t.msg('', `“3” became “${next}”: ${n} bits flipped.` + (st.flips.length >= 3 ? ' Always close to half, never exactly the same!' : ' Try a few more.'))
-          if (st.flips.length === 3) ctx.say('See? Around half the bits flip every time, but never exactly 128.')
         }
       }
       if (k === 2) {

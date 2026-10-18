@@ -134,7 +134,6 @@ const difficulty: SceneMaker = (stage, ctx) => {
         t.q('bad').onclick = () => {
           st.mined.push('bad'); draw()
           t.msg('bad', 'Rejected by the other nodes. In the accepted history this block never happened, so its reward is worth nothing.')
-          ctx.say('All that work for nothing! That’s the incentive to follow the rules.')
         }
       }
     },

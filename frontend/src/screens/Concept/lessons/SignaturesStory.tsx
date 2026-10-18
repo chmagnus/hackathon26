@@ -4,22 +4,11 @@
  * Built like SharedLedgerStory (same scene, ledger and quiz from storyKit, same story.css), plus Back/Next
  * buttons under the scene and a quick check at the end. All the text lives here, so it works without the backend.
  */
-import { useEffect, useRef, useState } from 'react'
-import AlgoChat, { type Reaction } from '../AlgoChat'
+import { useEffect, useRef } from 'react'
+import AlgoChat from '../AlgoChat'
 import type { LessonProps } from '../StoryLayout'
-import { NAMES, esc, makeQuiz, makeScene, navHTML, sha256, sleep, storyParts, type Line, type Name } from './storyKit'
+import { NAMES, esc, makeScene, navHTML, quiz, sha256, sleep, storyParts, type Line, type Name } from './storyKit'
 import '../story.css'
-
-/** Nib's pre-written answers for this moon from the prototype (plus two more), now Algo's */
-const QUICK_ANSWERS: [string, string][] = [
-  ["What's a secret key?", "It's like a password only you know. You use it to make signatures. Your public key is its partner that everyone can see, and it's used to check those signatures."],
-  ['Why does the signature change every time?', "Because it's made from the message AND your secret key. Change the message even slightly and you get a totally different signature, so you can't copy one onto another payment."],
-  ["Why can't Bob guess the signature?", "There are 2²⁵⁶ possible signatures, a number with 78 digits. Even every computer on Earth guessing for billions of years wouldn't get close."],
-  ['Why is it OK that everyone sees my public key?', "Because a public key can only check signatures, not make them. Making one needs your secret key, and that never leaves you."],
-  ["What's the copy trick?", "Bob copies one of Alice's real signed payments and adds it again, so she pays twice. The signature is real, so it looks fine! Giving every payment a unique ID stops it: each ID can only be used once."],
-]
-/** Questions for the AI tutor (need the backend) */
-const SUGGESTED = ['How do real cryptocurrencies use signatures?']
 
 const REAL = 'Alice pays Bob 20 · ID 1'
 const FAKE = 'Alice pays Bob 100 · ID 2'
@@ -29,22 +18,18 @@ const randomSig = () => [...crypto.getRandomValues(new Uint8Array(12))].map((b) 
 
 export default function SignaturesStory({ planetId, moon, onBack, onComplete }: LessonProps) {
   const mainRef = useRef<HTMLElement>(null)
-  const [reaction, setReaction] = useState<Reaction>({ text: "Remember Bob sneaking a fake line into the ledger? Today we stop him! Scroll down, and ask me anything on the way.", key: 0 })
 
-  // Keep the latest callbacks without re-running the setup
-  const say = useRef((text: string) => setReaction({ text, key: Date.now() }))
+  // Keep the latest onComplete without re-running the setup
   const complete = useRef(onComplete)
   useEffect(() => { complete.current = onComplete })
 
   useEffect(() => {
     const main = mainRef.current
     if (!main) return
-    const algoSay = (t: string) => say.current(t)
     let alive = true
     let parts: ReturnType<typeof storyParts> | undefined
 
     const $ = <T extends HTMLElement = HTMLElement>(id: string) => main.querySelector(`#${id}`) as T
-    const quiz = makeQuiz(algoSay)
 
     async function setup(main: HTMLElement) {
       // Everyone's two keys, made up from their names like the prototype (the secret one is never shown, except for one peek)
@@ -127,14 +112,12 @@ export default function SignaturesStory({ planetId, moon, onBack, onComplete }: 
         showLedger(); sc.coin('Alice', 'Bob', true); sc.shake('Bob'); sc.say('Bob', 'Heh heh…', 1800)
         setTimeout(() => alive && sc.say('Alice', 'I never agreed to that!', 2600), 900)
         const r = $('s0r'); r.hidden = false; r.textContent = 'Nothing stopped Bob. His fake line looks just as real as the others.'
-        algoSay("Uh-oh. Nothing in our system stopped Bob! Let's fix that.")
       }
 
       // Part 2: peek at Alice's secret key
       $('s1peek').onclick = () => {
         ($('s1peek').closest('section')!.querySelector('[data-sk="Alice"]') as HTMLElement).textContent = SK.Alice
         sc.glowKey('Alice', 's'); sc.say('Alice', "Hey, that's private!", 1800)
-        algoSay('Shh. In real life, Alice never shows this to anyone.')
       }
 
       // Part 3: sign, then edit the message and watch the signature change
@@ -154,9 +137,7 @@ export default function SignaturesStory({ planetId, moon, onBack, onComplete }: 
         else if (active === 2) showSigning()
       }
       $('s2sign').onclick = () => {
-        const first = !st.signed
         resign(); sc.glowKey('Alice', 's'); sc.coin('Alice', 'book')
-        if (first) algoSay('Signed! Now change the message, even one letter, and watch the signature.')
       }
 
       // Part 4: check the real signature, and let Bob guess at a fake one
@@ -173,7 +154,6 @@ export default function SignaturesStory({ planetId, moon, onBack, onComplete }: 
         const r = $('s3r2'); r.hidden = false; r.className = 'fb bad'; r.textContent = `✗ False. ${st.guesses.toLocaleString()} guesses so far, all wrong.`
         sc.shake('Bob'); sc.glowKey('Alice', 'p')
         if (active === 3) showChecking()
-        if (n > 1) algoSay("A thousand guesses, zero luck. Even a billion wouldn't help!")
       }
       $('s3g1').onclick = () => guess(1)
       $('s3g1000').onclick = () => guess(1000)
@@ -189,14 +169,12 @@ export default function SignaturesStory({ planetId, moon, onBack, onComplete }: 
         st.signedLines.push({ ...st.signedLines[0], bad: 1, note: 'A copy. Alice pays twice!' })
         sc.lines(st.signedLines, st.signedLines.length - 1); sc.coin('Alice', 'Bob', true); sc.say('Bob', 'Ka-ching!', 1500)
         copyResult('bad', 'Accepted! The signature is valid, so the copy got through.')
-        algoSay('The signature is real, so the copy looks fine. Sneaky! Try the unique-ID rule.')
       }
       $<HTMLButtonElement>('s4rule').onclick = () => {
         st.copyRule = true; $<HTMLButtonElement>('s4rule').disabled = true
         st.signedLines = st.signedLines.filter((l) => !l.bad)
         sc.lines(st.signedLines); cap('Each ID can only be used once.')
         copyResult('ok', 'Rule added. The copies were removed because their ID was already used.')
-        algoSay('Now try copying again!')
       }
 
       // Part 6: quick check, then complete the moon
@@ -222,7 +200,7 @@ export default function SignaturesStory({ planetId, moon, onBack, onComplete }: 
         </div>
       </header>
       <main className="cmain" ref={mainRef} />
-      <AlgoChat planetId={planetId} moonId={moon.id} quickAnswers={QUICK_ANSWERS} suggested={SUGGESTED} reaction={reaction} />
+      <AlgoChat planetId={planetId} moonId={moon.id} />
     </div>
   )
 }

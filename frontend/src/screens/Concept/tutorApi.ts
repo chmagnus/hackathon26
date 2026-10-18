@@ -14,8 +14,21 @@ export type TutorRequest = {
 }
 
 // Set to true to always use the fake Algo (saves AI quota while building).
-// When false, it uses the real backend and only falls back to the fake if the backend isn't reachable.
+// When false, it uses the real backend. Only while developing does it fall back to the fake if the backend isn't
+// running; a deployed build reports the problem instead of answering with made-up replies.
 const USE_MOCK = false
+const FAKE_WHEN_OFFLINE = import.meta.env?.DEV === true
+
+/** A failure the backend explained in words meant for the learner, e.g. the tutor's daily limit */
+export class TutorError extends Error {}
+
+async function failure(res: Response): Promise<Error> {
+  try {
+    const message = (await res.json())?.error?.message
+    if (typeof message === 'string' && message) return new TutorError(message)
+  } catch { /* not JSON */ }
+  return new Error(`Tutor request failed (${res.status})`)
+}
 
 /** Sends the chat to the tutor and calls onToken for each piece of the answer as it arrives. */
 export async function streamTutor(
@@ -43,18 +56,20 @@ export async function streamTutor(
       signal,
     })
   } catch (e) {
-    if (signal?.aborted) throw e
+    if (signal?.aborted || !FAKE_WHEN_OFFLINE) throw e
     console.warn('Tutor backend not reachable, using the fake Algo')
     return mockStream(body, onToken, signal)
   }
 
-  // Backend not running (Vite answers 404) -> fake Algo, so the chat still works while building
+  // Backend not running (Vite's proxy answers 502-504, or 404 without the proxy) -> fake Algo, so the chat still
+  // works while building
   const isStream = res.headers.get('content-type')?.includes('text/event-stream')
-  if (res.status === 404 || (res.ok && !isStream)) {
+  const offline = res.status === 404 || (res.status >= 502 && res.status <= 504) || (res.ok && !isStream)
+  if (FAKE_WHEN_OFFLINE && offline) {
     console.warn('Tutor backend not available, using the fake Algo')
     return mockStream(body, onToken, signal)
   }
-  if (!res.ok || !res.body) throw new Error(`Tutor request failed (${res.status})`)
+  if (!res.ok || !res.body || !isStream) throw await failure(res)
 
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
@@ -72,7 +87,7 @@ export async function streamTutor(
       if (!line.startsWith('data:')) continue
       const event = JSON.parse(line.slice(5).trim())
       if (event.type === 'token') onToken(event.text)
-      else if (event.type === 'error') throw new Error(event.message)
+      else if (event.type === 'error') throw new TutorError(event.message)
       else if (event.type === 'done') return
     }
   }
@@ -100,13 +115,3 @@ async function mockStream(req: TutorRequest, onToken: (t: string) => void, signa
 }
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
-
-/** Types out a pre-written answer word by word (used for the suggested-question chips). */
-export async function typeOut(text: string, onToken: (t: string) => void, signal?: AbortSignal) {
-  await wait(250)
-  for (const word of text.split(' ')) {
-    if (signal?.aborted) return
-    onToken(word + ' ')
-    await wait(18 + Math.random() * 25)
-  }
-}

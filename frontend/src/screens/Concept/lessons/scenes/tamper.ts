@@ -100,7 +100,6 @@ const tamper: SceneMaker = (stage, ctx) => {
           const first = p.hash.findIndex((h, i) => h !== p.record![i])
           const right = first < 0 ? false : g === 'after' || (g === 'only' && first === 4)
           t.msg(right ? 'ok' : 'bad', first < 0 ? 'Every block still matches.' : `${right ? 'Right!' : 'Not quite.'} Blocks ${first + 1} to 5 fail: block ${first + 1} changed, and every block after it uses the hash before it. Blocks before it still match.`)
-          if (right) ctx.say('Nice prediction! The red always runs from the edit to the end.')
         }
         pick.onchange = () => { inp.value = p.pay[+pick.value]; guesses() }
         inp.oninput = () => { p.pay[+pick.value] = inp.value; changed() }
@@ -140,7 +139,6 @@ const tamper: SceneMaker = (stage, ctx) => {
           p.record = [...p.hash]; p.replaced = true
           await check(p, true)
           t.msg('bad', 'Everything “matches” now. Without another trusted copy of the old fingerprints, nobody can tell the history changed.')
-          ctx.say('Sneaky! That’s why the next moons make rewriting cost real work.')
         }
         t.q('who').onclick = () => t.msg('', "The checker can't say. A mismatch only proves the bytes are different. It can't tell who changed them, or whether the new text is true.")
         t.q('reset').onclick = async () => { p.pay = [...START]; p.record = null; p.replaced = false; await check(p, false); t.msg('', '') }

@@ -24,7 +24,8 @@ def build_system_prompt(req) -> str:
         return (
             "You are a friendly tutor in Nova, an app that teaches computer science "
             "algorithms as explorable planets. Keep answers under 120 words and prefer "
-            "guiding questions over giving answers outright."
+            "guiding questions over giving answers outright. Write plain text without "
+            "Markdown formatting."
         )
 
     linked = [m for m in _iter_moons(planet) if m["id"] in moon.get("links", [])]
@@ -55,7 +56,8 @@ Rules:
 - If you go beyond the lesson content, say so.
 - Prefer guiding questions over giving answers outright.
 - Never reveal the answer to this moon's completion check.
-- Keep answers under 120 words."""
+- Keep answers under 120 words.
+- Write plain text in short paragraphs. Don't use Markdown: no **, #, or bullet lists."""
 
 
 # Daily cap. In-memory: reliable locally; on Cloudflare each instance keeps its own

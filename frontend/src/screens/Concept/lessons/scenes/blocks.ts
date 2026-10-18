@@ -124,7 +124,6 @@ const blocks: SceneMaker = (stage, ctx) => {
           rehash()
           const bad = st.batch === '8 + 8'
           t.msg(bad ? 'bad' : 'ok', bad ? 'Rejected: after paying 8, Alice only has 2 left, so the second 8 is overspending. The block still has a hash, but that does not make it valid.' : 'Valid: 10 − 3 − 2 leaves Alice with 5.')
-          if (bad) ctx.say('A hash is just a fingerprint. It can fingerprint a bad batch too!')
         }))
       }
       if (k === 3) {

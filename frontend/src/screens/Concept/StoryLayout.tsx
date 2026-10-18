@@ -6,7 +6,7 @@
  * The lesson supplies the scene (with its caption) and the "Try it" boxes.
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import AlgoChat, { type Reaction } from './AlgoChat'
+import AlgoChat from './AlgoChat'
 import type { Moon } from './moonApi'
 import { storyParts } from './lessons/storyKit'
 import './story.css'
@@ -26,16 +26,12 @@ type StoryLayoutProps = LessonProps & {
   renderExtra?: (step: number) => ReactNode
   /** Called when a new part scrolls into view */
   onStepChange?: (active: number) => void
-  /** Algo's latest comment */
-  reaction: Reaction
-  /** Lets Algo comment on quick check answers */
-  say: (text: string) => void
   /** Line next to "Complete moon", e.g. "Next up: nodes." */
   nextUp?: string
 }
 
 export default function StoryLayout({
-  planetId, moon, onBack, onComplete, onOpenMoon, stage, renderExtra, onStepChange, reaction, say, nextUp,
+  planetId, moon, onBack, onComplete, onOpenMoon, stage, renderExtra, onStepChange, nextUp,
 }: StoryLayoutProps) {
   const [active, setActive] = useState(0)
   const mainRef = useRef<HTMLElement>(null)
@@ -73,7 +69,7 @@ export default function StoryLayout({
                 <LessonText text={step.body} onOpenMoon={openMoon} />
                 {renderExtra?.(i)}
                 {i === 0 && steps.length > 1 && <p className="down">Scroll down to keep going ↓</p>}
-                {i === steps.length - 1 && <QuickCheck moon={moon} say={say} nextUp={nextUp} onPass={() => onComplete?.(moon.id)} />}
+                {i === steps.length - 1 && <QuickCheck moon={moon} nextUp={nextUp} onPass={() => onComplete?.(moon.id)} />}
               </section>
             ))}
           </div>
@@ -87,13 +83,13 @@ export default function StoryLayout({
           </div>
         </div>
       </main>
-      <AlgoChat planetId={planetId} moonId={moon.id} suggested={moon.suggested} onMoonLink={openMoon} reaction={reaction} />
+      <AlgoChat planetId={planetId} moonId={moon.id} onMoonLink={openMoon} />
     </div>
   )
 }
 
 /** The quick check, like the story lessons' quiz: wrong answers can be retried; the right one shows "Complete moon" */
-function QuickCheck({ moon, say, nextUp, onPass }: { moon: Moon; say: (text: string) => void; nextUp?: string; onPass: () => void }) {
+function QuickCheck({ moon, nextUp, onPass }: { moon: Moon; nextUp?: string; onPass: () => void }) {
   const [picked, setPicked] = useState<string | null>(null)
   const [passed, setPassed] = useState(false)
   const { question, options, answer } = moon.check
@@ -102,7 +98,7 @@ function QuickCheck({ moon, say, nextUp, onPass }: { moon: Moon; say: (text: str
   const feedback = right ? `Correct! ${moon.summary}` : 'Not quite. Look back at the scene, or ask Algo, then try again.'
   const choose = (option: string) => {
     setPicked(option)
-    if (option === answer) { setPassed(true); say(`Correct! ${moon.summary}`) } else say("Not quite. Have another look at the scene. You've got this!")
+    if (option === answer) setPassed(true)
   }
   return (
     <>

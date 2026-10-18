@@ -92,7 +92,6 @@ const doubleSpend: SceneMaker = (stage, ctx) => {
         t.q('reveal').onclick = () => {
           st.revealed = true; t.q('reveal').disabled = true
           t.msg('bad', "Alice's chain has more work, so every node switches to it. In that history Alice paid herself, so Bob's payment is gone, and so is the bike.")
-          ctx.say('Ouch. That’s a double spend. That’s why shops wait for confirmations!')
           draw()
         }
         t.q('reset').onclick = () => { st.handed = false; st.revealed = false; t.q('hand').disabled = false; t.q('reveal').disabled = true; t.msg('', ''); draw() }
