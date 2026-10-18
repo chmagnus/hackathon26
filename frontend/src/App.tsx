@@ -80,6 +80,7 @@ export default function App() {
         planet={planet}
         progress={{ completed: systems[planet.id]?.completed ?? NONE, edits: systems[planet.id]?.edits }}
         onCompleteMoon={completeMoon}
+        onEditMoon={(moonId, body) => useProgress.getState().editMoon(planet.id, moonId, body)}
         renderConcept={(moonId, handlers) => <ConceptScreen planetId={planet.id} moonId={moonId} {...handlers} />}
       />
     </div>
