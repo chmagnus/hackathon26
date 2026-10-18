@@ -5,7 +5,7 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import Algo, { type AlgoMood } from './Algo'
-import { streamTutor, type ChatMessage } from './tutorApi'
+import { streamTutor, TutorError, type ChatMessage } from './tutorApi'
 import { playAlgoClick, startAlgoVoice, stopAlgoVoice } from '../../shared/sounds'
 
 type AlgoChatProps = {
@@ -77,9 +77,11 @@ export default function AlgoChat({ planetId, moonId, onMoonLink }: AlgoChatProps
     try {
       await streamTutor({ system: planetId, moon_id: moonId, messages: history }, append, abort.signal)
       answered = true
-    } catch {
+    } catch (e) {
       if (abort.signal.aborted) return
-      setMessages((prev) => [...prev.slice(0, -1), { role: 'assistant', content: FALLBACK }])
+      // the backend's own explanation (e.g. today's limit is reached) if it gave one
+      const reply = e instanceof TutorError ? e.message : FALLBACK
+      setMessages((prev) => [...prev.slice(0, -1), { role: 'assistant', content: reply }])
     } finally {
       if (!abort.signal.aborted) {
         stopAlgoVoice()
