@@ -8,8 +8,6 @@ import { esc, sha256 } from '../storyKit'
 export { esc, sha256 }
 
 export type Ctx = {
-  /** pop up a comment from Algo */
-  say: (text: string) => void
   /** false when the learner asked for reduced motion: skip step-by-step animations */
   motion: boolean
 }

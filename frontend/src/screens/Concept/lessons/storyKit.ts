@@ -302,17 +302,15 @@ export const navHTML = '<div class="snav"><button class="btn sm" id="sback">← 
 
 export type QuizOption = [text: string, right: boolean, feedback: string]
 
-/** Returns the inline quiz used inside the story; Algo comments on each answer through `say` */
-export function makeQuiz(say: (text: string) => void) {
-  return function quiz(host: HTMLElement, q: string, opts: QuizOption[], onRight?: () => void) {
-    host.innerHTML = `<div class="qz"><div class="qq">${q}</div>${opts.map((o, i) => `<button class="opt" data-i="${i}">${o[0]}</button>`).join('')}<p class="fb" hidden></p></div>`
-    const fb = host.querySelector('.fb') as HTMLElement
-    host.querySelectorAll<HTMLButtonElement>('.opt').forEach((b) => (b.onclick = () => {
-      const o = opts[+b.dataset.i!]
-      host.querySelectorAll('.opt').forEach((x) => x.classList.remove('right', 'wrong'))
-      b.classList.add(o[1] ? 'right' : 'wrong')
-      fb.hidden = false; fb.className = 'fb ' + (o[1] ? 'ok' : 'bad'); fb.textContent = o[2]
-      if (o[1]) { say(o[2]); onRight?.() } else say('Not quite. ' + o[2])
-    }))
-  }
+/** The inline quiz used inside the story: each answer shows its feedback under the options */
+export function quiz(host: HTMLElement, q: string, opts: QuizOption[], onRight?: () => void) {
+  host.innerHTML = `<div class="qz"><div class="qq">${q}</div>${opts.map((o, i) => `<button class="opt" data-i="${i}">${o[0]}</button>`).join('')}<p class="fb" hidden></p></div>`
+  const fb = host.querySelector('.fb') as HTMLElement
+  host.querySelectorAll<HTMLButtonElement>('.opt').forEach((b) => (b.onclick = () => {
+    const o = opts[+b.dataset.i!]
+    host.querySelectorAll('.opt').forEach((x) => x.classList.remove('right', 'wrong'))
+    b.classList.add(o[1] ? 'right' : 'wrong')
+    fb.hidden = false; fb.className = 'fb ' + (o[1] ? 'ok' : 'bad'); fb.textContent = o[2]
+    if (o[1]) onRight?.()
+  }))
 }

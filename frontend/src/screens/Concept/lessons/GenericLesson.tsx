@@ -3,15 +3,13 @@
  * the moon's own (./scenes, one file per moon): a picture that follows the story part by part, plus a "Try it" box
  * inside each part. Moons without a scene show Algo with the part's title.
  */
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Algo from '../Algo'
-import type { Reaction } from '../AlgoChat'
 import StoryLayout, { type LessonProps } from '../StoryLayout'
 import { SCENES, nextUp } from './scenes'
 import type { MoonScene } from './scenes/kit'
 import '../story.css'
 
-const HELLO = "Scroll down and I'll walk you through it. Try things in the boxes, and ask me anything on the way!"
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 export default function GenericLesson(props: LessonProps) {
@@ -19,8 +17,6 @@ export default function GenericLesson(props: LessonProps) {
   const make = planetId === 'blockchain' ? SCENES[moon.id] : undefined
   const steps = moon.dialogue_steps
 
-  const [reaction, setReaction] = useState<Reaction>({ text: HELLO, key: 0 })
-  const say = useCallback((text: string) => setReaction({ text, key: Date.now() }), [])
   const [active, setActive] = useState(0)
 
   const stageRef = useRef<HTMLDivElement>(null)
@@ -33,7 +29,7 @@ export default function GenericLesson(props: LessonProps) {
   useEffect(() => {
     const stage = stageRef.current
     if (!make || !stage) return
-    const s = make(stage, { say, motion: !reducedMotion() })
+    const s = make(stage, { motion: !reducedMotion() })
     scene.current = s
     const boxes = slots.current
     boxes.forEach((el, k) => el && s.tryIt(k, el))
@@ -45,7 +41,7 @@ export default function GenericLesson(props: LessonProps) {
       stage.innerHTML = ''
       boxes.forEach((el) => el && (el.innerHTML = ''))
     }
-  }, [make, moon.id, say])
+  }, [make, moon.id])
 
   const onStepChange = (k: number) => {
     activeRef.current = k
@@ -71,8 +67,6 @@ export default function GenericLesson(props: LessonProps) {
       stage={stage}
       renderExtra={make ? (k) => <div ref={(el) => { slots.current[k] = el }} /> : undefined}
       onStepChange={onStepChange}
-      reaction={reaction}
-      say={say}
       nextUp={nextUp(planetId, moon.id)}
     />
   )

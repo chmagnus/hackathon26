@@ -106,7 +106,6 @@ const nonceScene: SceneMaker = (stage, ctx) => {
         const t = tryBox(host, '<button class="btn sm" data-a="next">Next nonce</button><button class="btn sm gold" data-a="spin">Spin until it fits</button><button class="btn sm" data-a="reset">Reset</button>')
         const done = () => {
           t.msg(s.found ? 'ok' : '', s.found ? `Nonce ${s.nonce} works! It took ${s.tries + 1} tries. It could have taken 3, or 3,000.` : `Nonce ${s.nonce} misses. Each nonce gives a fresh-looking hash.`)
-          if (s.found) ctx.say(`Nonce ${s.nonce} fits! Every try was a fresh roll of the dice.`)
         }
         t.q('next').onclick = async () => { lf.run(); if (await next(s)) { redraw(s); done() } }
         t.q('spin').onclick = async () => { if (s.found) return; if (await spin(s, () => s.found)) done() }

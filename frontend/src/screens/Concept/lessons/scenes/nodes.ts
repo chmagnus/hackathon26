@@ -136,7 +136,6 @@ const nodes: SceneMaker = (stage, ctx) => {
           off(true)
           if (await spread([[1, 'a']], { fake: true })) {
             t.msg('bad', 'Rejected at the first check! It spends coins without a valid signature, so no node accepts it or passes it on, however much work went into it.')
-            ctx.say('Mining a block is not enough. Every node checks the rules.')
           }
           off(false)
         }

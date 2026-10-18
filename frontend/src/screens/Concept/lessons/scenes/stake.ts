@@ -128,7 +128,6 @@ const stake: SceneMaker = (stage, ctx) => {
           fresh(); st.offline = st.offline === n ? null : st.offline
           st.stake[n] = Math.floor(st.stake[n] / 2); st.burnt = n; draw()
           t.msg('bad', `${n} voted for two different blocks. Anyone can prove it, so half of ${n}'s stake is destroyed (slashed).`)
-          ctx.say('Cheating costs real coins. That’s the stake doing its job!')
         }
         t.q('off').onclick = () => {
           const n = who()

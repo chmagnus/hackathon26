@@ -104,7 +104,6 @@ const rewrite: SceneMaker = (stage, ctx) => {
           st.p1 = await chainOf(st.p1.map((b) => b.data)); st.p1Hashes = 3
           t.q('fix').disabled = true
           t.msg('bad', 'Done in a blink. Every link fits again, so the fake chain looks perfectly consistent.')
-          ctx.say('Three quick hashes and the cheat is hidden. That’s the problem this moon fixes!')
           draw()
         }
         t.q('reset').onclick = () => { st.p1 = st.orig; st.p1Hashes = 0; t.q('fix').disabled = true; t.msg('', ''); draw() }

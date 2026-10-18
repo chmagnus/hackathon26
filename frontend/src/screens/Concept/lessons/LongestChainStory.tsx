@@ -4,10 +4,10 @@
  * Built like SignaturesStory: the story scrolls on the left, a scene of chain "lanes" (rows of blocks) sits on the
  * right with Back/Next, and there's a quick check at the end. All the text lives here.
  */
-import { useEffect, useRef, useState } from 'react'
-import AlgoChat, { type Reaction } from '../AlgoChat'
+import { useEffect, useRef } from 'react'
+import AlgoChat from '../AlgoChat'
 import type { LessonProps } from '../StoryLayout'
-import { NAMES, PCOL, catchUp, laneHTML, makeQuiz, navHTML, pct, sleep, storyParts } from './storyKit'
+import { NAMES, PCOL, catchUp, laneHTML, navHTML, pct, quiz, sleep, storyParts } from './storyKit'
 import '../story.css'
 
 const MINT = 'var(--mint)', SKY = 'var(--sky)', ORANGE = '#ff9a3c'
@@ -15,25 +15,21 @@ const WAITS = [1, 2, 3, 6] // catchUp(z) is for a cheater with 10% of the comput
 
 export default function LongestChainStory({ planetId, moon, onBack, onComplete }: LessonProps) {
   const mainRef = useRef<HTMLElement>(null)
-  const [reaction, setReaction] = useState<Reaction>({ text: "Last moon, every node kept its own copy. But what if the copies disagree? Scroll down, and ask me anything on the way.", key: 0 })
 
-  // Keep the latest callbacks without re-running the setup
-  const say = useRef((text: string) => setReaction({ text, key: Date.now() }))
+  // Keep the latest onComplete without re-running the setup
   const complete = useRef(onComplete)
   useEffect(() => { complete.current = onComplete })
 
   useEffect(() => {
     const main = mainRef.current
     if (!main) return
-    const algoSay = (t: string) => say.current(t)
     let alive = true
 
     const $ = <T extends HTMLElement = HTMLElement>(id: string) => main.querySelector(`#${id}`) as T
-    const quiz = makeQuiz(algoSay)
 
     const st = {
       copies: 4, // part 1
-      a: 2, b: 2, picked: false, // part 2
+      a: 2, b: 2, // part 2
       q: 20, honest: 0, fake: 1, running: false, // part 3
       wait: 0, // part 4
       fresh: false, // the newest block pops in once
@@ -113,10 +109,10 @@ export default function LongestChainStory({ planetId, moon, onBack, onComplete }
     const grow = (k: number) => { st.fresh = true; if (active === k) draw(); else st.fresh = false }
 
     // Part 1: a miner broadcasts a block and every copy adds it
-    $('c0add').onclick = () => {
-      if (st.copies >= 10) { algoSay('The copies are full for now. Scroll on to see what happens when they disagree!'); return }
+    const add = $<HTMLButtonElement>('c0add')
+    add.onclick = () => {
       st.copies++; grow(0)
-      if (st.copies === 5) algoSay('Everyone adds the same block, so all the copies still match.')
+      if (st.copies >= 10) add.disabled = true // the copies are full for now
     }
 
     // Part 2: a fork; add blocks to either side
@@ -125,11 +121,10 @@ export default function LongestChainStory({ planetId, moon, onBack, onComplete }
       const r = $('c1r')
       r.className = a === b ? 'fb' : 'fb ok'
       r.textContent = a === b ? "It's a tie. Wait for the next block." : `You'd trust Chain ${a > b ? 'A' : 'B'}. It has the most work.`
-      if (a !== b && !st.picked) { st.picked = true; algoSay(`Chain ${a > b ? 'A' : 'B'} pulled ahead, so everyone switches to it. The other side's blocks get dropped.`) }
     }
     $('c1a').onclick = () => { if (st.a < 9) { st.a++; grow(1); showFork() } }
     $('c1b').onclick = () => { if (st.b < 9) { st.b++; grow(1); showFork() } }
-    $('c1reset').onclick = () => { st.a = 2; st.b = 2; st.picked = false; if (active === 1) draw(); showFork() }
+    $('c1reset').onclick = () => { st.a = 2; st.b = 2; if (active === 1) draw(); showFork() }
     showFork()
 
     // Part 3: Alice's fake chain races the honest one; each round one side finds the next block
@@ -158,9 +153,6 @@ export default function LongestChainStory({ planetId, moon, onBack, onComplete }
       }
       st.running = false; btn.disabled = false; slider.disabled = false; btn.textContent = 'Run again'
       r.hidden = false; r.className = 'fb ' + cls; r.textContent = msg
-      algoSay(cls === 'bad'
-        ? "Uh-oh, with that much power Alice wins. That's a majority attack, and it's the next moon."
-        : 'The honest miners out-worked Alice, so Bob drops her fake chain. Try giving her more power!')
     }
 
     // Part 4: add blocks on top of a payment and watch the cheater's chance shrink
@@ -168,7 +160,6 @@ export default function LongestChainStory({ planetId, moon, onBack, onComplete }
     $('c3add').onclick = () => {
       if (st.wait >= 6) return
       st.wait++; grow(3); showWait()
-      if (st.wait === 6) algoSay('Six blocks deep. Many Bitcoin users treat that as final.')
     }
     $('c3reset').onclick = () => { st.wait = 0; if (active === 3) draw(); showWait() }
 
@@ -193,7 +184,7 @@ export default function LongestChainStory({ planetId, moon, onBack, onComplete }
         </div>
       </header>
       <main className="cmain" ref={mainRef} />
-      <AlgoChat planetId={planetId} moonId={moon.id} reaction={reaction} />
+      <AlgoChat planetId={planetId} moonId={moon.id} />
     </div>
   )
 }

@@ -1,45 +1,29 @@
 /**
  * Algo, the alien guide, as a chat bubble in the bottom-right corner.
- *  - Pops up short comments in a speech bubble (like Nib did in the prototype).
- *  - Click Algo to open a chat bubble and ask your own questions (answered by the AI tutor).
+ * Click Algo to open a chat box and ask questions about the lesson (answered by the AI tutor).
+ * He only speaks when asked.
  */
 import { useEffect, useRef, useState } from 'react'
 import Algo, { type AlgoMood } from './Algo'
 import { streamTutor, type ChatMessage } from './tutorApi'
 import { playAlgoClick, startAlgoVoice, stopAlgoVoice } from '../../shared/sounds'
 
-export type Reaction = { text: string; key: number }
-
 type AlgoChatProps = {
   planetId: string // e.g. "blockchain"
   moonId: string // e.g. "ledgers"
-  /** Short comment for Algo to pop up. Change `key` to show a new one. */
-  reaction?: Reaction
   onMoonLink?: (moonId: string) => void
 }
 
 const FALLBACK = "Hmm, my signal's weak right now. Ask me again in a moment!"
 const HAPPY_MS = 1500 // how long Algo looks pleased after finishing an answer
 
-export default function AlgoChat({ planetId, moonId, reaction, onMoonLink }: AlgoChatProps) {
+export default function AlgoChat({ planetId, moonId, onMoonLink }: AlgoChatProps) {
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
   const logRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
-
-  // Reaction bubble: Algo talks for a moment, the bubble hides after 9 seconds
-  const [quietKey, setQuietKey] = useState<number | null>(null)
-  const [hiddenKey, setHiddenKey] = useState<number | null>(null)
-  useEffect(() => {
-    if (!reaction) return
-    const t1 = setTimeout(() => setQuietKey(reaction.key), 1600)
-    const t2 = setTimeout(() => setHiddenKey(reaction.key), 9000)
-    return () => { clearTimeout(t1); clearTimeout(t2) }
-  }, [reaction])
-  const showReaction = !!reaction && !open && hiddenKey !== reaction.key
-  const reacting = !!reaction && quietKey !== reaction.key
 
   // New moon = fresh chat
   const [chatMoon, setChatMoon] = useState(moonId)
@@ -116,27 +100,14 @@ export default function AlgoChat({ planetId, moonId, reaction, onMoonLink }: Alg
   }
 
   const waiting = streaming && messages[messages.length - 1]?.content === ''
-  // thinking until the first word arrives, talking while it streams (or while he pops up a comment), then happy for a moment
+  // thinking until the first word arrives, talking while it streams, then happy for a moment
   const mood: AlgoMood = waiting ? 'thinking'
-    : streaming || (reacting && !open) ? 'talking'
+    : streaming ? 'talking'
     : happy ? 'happy'
     : 'idle'
 
   return (
     <>
-      {/* Speech bubble with Algo's latest comment */}
-      {showReaction && (
-        <div
-          key={reaction.key}
-          role="status"
-          className="fixed right-[112px] bottom-12 z-40 max-w-[320px] max-sm:left-3 max-sm:max-w-none rounded-2xl rounded-br-sm border border-mint/40 bg-[#0b1427] px-4 py-3 text-[15px] leading-snug text-ink shadow-2xl"
-          style={{ animation: 'algo-pop .3s ease-out' }}
-        >
-          {reaction.text}
-          <button onClick={() => setHiddenKey(reaction.key)} aria-label="Hide" className="ml-2 text-muted cursor-pointer hover:text-ink">×</button>
-        </div>
-      )}
-
       {/* The chat bubble */}
       {open && (
         <section

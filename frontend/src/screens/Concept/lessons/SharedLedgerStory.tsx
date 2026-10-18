@@ -3,29 +3,25 @@
  * Only differences from the prototype: Algo (new design, chat bubble instead of Nib's side panel) and sounds.
  * The scene and story are built with plain DOM like the prototype, inside a React-owned container.
  */
-import { useEffect, useRef, useState } from 'react'
-import AlgoChat, { type Reaction } from '../AlgoChat'
+import { useEffect, useRef } from 'react'
+import AlgoChat from '../AlgoChat'
 import type { LessonProps } from '../StoryLayout'
-import { NAMES, balances, makeQuiz, makeScene, navHTML, selP, sleep, storyParts, type Line, type Name } from './storyKit'
+import { NAMES, balances, makeScene, navHTML, quiz, selP, sleep, storyParts, type Line, type Name } from './storyKit'
 import '../story.css'
 
 export default function SharedLedgerStory({ planetId, moon, onBack, onComplete }: LessonProps) {
   const mainRef = useRef<HTMLElement>(null)
-  const [reaction, setReaction] = useState<Reaction>({ text: "Scroll down and I'll walk you through it. Ask me anything on the way!", key: 0 })
 
-  // Keep the latest callbacks without re-running the setup
-  const say = useRef((text: string) => setReaction({ text, key: Date.now() }))
+  // Keep the latest onComplete without re-running the setup
   const complete = useRef(onComplete)
   useEffect(() => { complete.current = onComplete })
 
   useEffect(() => {
     const main = mainRef.current
     if (!main) return
-    const algoSay = (t: string) => say.current(t)
     let alive = true
 
     const $ = <T extends HTMLElement = HTMLElement>(id: string) => main.querySelector(`#${id}`) as T
-    const quiz = makeQuiz(algoSay)
 
     const st = {
       iou: [{ f: 'Alice', t: 'Bob', a: 20 }, { f: 'Bob', t: 'Charlie', a: 40 }] as Line[],
@@ -85,9 +81,8 @@ export default function SharedLedgerStory({ planetId, moon, onBack, onComplete }
     $<HTMLSelectElement>('i1amt').onchange = (e) => { st.iou[0].a = +(e.target as HTMLSelectElement).value; sc.lines(st.iou, 0); sc.coin('Alice', 'Bob') }
     $('i1add').onclick = () => {
       const f = $<HTMLSelectElement>('i1f').value as Name, t = $<HTMLSelectElement>('i1t').value as Name, a = +$<HTMLSelectElement>('i1a').value
-      if (f === t) { algoSay("Pick two different people. Paying yourself doesn't count!"); return }
+      if (f === t) { sc.say(f, "I can't pay myself!", 1500); return }
       st.iou.push({ f, t, a }); st.settled = false; sc.lines(st.iou, st.iou.length - 1); sc.coin(f, t); sc.say(f, 'Added!', 1200)
-      algoSay(`Nice! “${f} pays ${t} ${a}” is on the ledger now.`)
     }
     $('i1settle').onclick = () => {
       st.settled = true; showSettle()
@@ -105,7 +100,6 @@ export default function SharedLedgerStory({ planetId, moon, onBack, onComplete }
       if (a > have) {
         r.className = 'fb bad'; r.textContent = `Rejected. Charlie only has ${have} on the ledger, so he can't pay ${a}.`
         sc.shake('Charlie'); sc.coin('Charlie', 'Bob', true); sc.say('Charlie', 'Declined!?', 1500)
-        algoSay("See? The ledger blocked it. You can't spend money you don't have.")
       } else {
         st.money.push({ f: 'Charlie', t: 'Bob', a }); r.className = 'fb ok'; r.textContent = `Accepted. Charlie had ${have}, now he has ${have - a}.`
         sc.lines(st.money, st.money.length - 1); sc.bal(balances(st.money)); sc.coin('Charlie', 'Bob')
@@ -116,7 +110,6 @@ export default function SharedLedgerStory({ planetId, moon, onBack, onComplete }
       st.forged = true; $<HTMLButtonElement>('i1forge').disabled = true
       sc.lines(st.money.concat([forgedLine]), st.money.length); sc.coin('Alice', 'Bob', true); sc.shake('Bob'); sc.say('Bob', 'Heh heh…', 1800)
       setTimeout(() => alive && sc.say('Alice', 'I never agreed to that!', 2600), 900)
-      algoSay('Uh-oh. Nothing in our system stopped Bob!')
       quiz($('i1q'), "What's missing from our system?", [
         ['A way to prove Alice really agreed to a payment', true, "Exactly. That's what digital signatures do. We'll build them in a few moons, starting with hashing next."],
         ['A bigger ledger', false, "Size isn't the problem. Bob could still write fake lines."],
@@ -138,7 +131,7 @@ export default function SharedLedgerStory({ planetId, moon, onBack, onComplete }
         </div>
       </header>
       <main className="cmain" ref={mainRef} />
-      <AlgoChat planetId={planetId} moonId={moon.id} reaction={reaction} />
+      <AlgoChat planetId={planetId} moonId={moon.id} />
     </div>
   )
 }

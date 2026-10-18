@@ -4,10 +4,10 @@
  * from the old HashingLesson. Built like SignaturesStory: the story scrolls on the left, the fingerprint scene from
  * storyKit sits on the right with Back/Next, and there's a quick check at the end. All the text lives here.
  */
-import { useEffect, useRef, useState } from 'react'
-import AlgoChat, { type Reaction } from '../AlgoChat'
+import { useEffect, useRef } from 'react'
+import AlgoChat from '../AlgoChat'
 import type { LessonProps } from '../StoryLayout'
-import { esc, hashDiff, hashHTML, makeHashScene, makeQuiz, navHTML, sha256, sleep, storyParts } from './storyKit'
+import { esc, hashDiff, hashHTML, makeHashScene, navHTML, quiz, sha256, sleep, storyParts } from './storyKit'
 import '../story.css'
 
 const HELLO = 'Hello from GUTS'
@@ -15,22 +15,18 @@ const LINE = 'Alice pays Bob 20'
 
 export default function HashStory({ planetId, moon, onBack, onComplete }: LessonProps) {
   const mainRef = useRef<HTMLElement>(null)
-  const [reaction, setReaction] = useState<Reaction>({ text: "Last time, the friends' ledger had a hole in it. Today's tool is a fingerprint for data! Scroll down, and ask me anything on the way.", key: 0 })
 
-  // Keep the latest callbacks without re-running the setup
-  const say = useRef((text: string) => setReaction({ text, key: Date.now() }))
+  // Keep the latest onComplete without re-running the setup
   const complete = useRef(onComplete)
   useEffect(() => { complete.current = onComplete })
 
   useEffect(() => {
     const main = mainRef.current
     if (!main) return
-    const algoSay = (t: string) => say.current(t)
     let alive = true
     let parts: ReturnType<typeof storyParts> | undefined
 
     const $ = <T extends HTMLElement = HTMLElement>(id: string) => main.querySelector(`#${id}`) as T
-    const quiz = makeQuiz(algoSay)
 
     async function setup(main: HTMLElement) {
       const helloHash = await sha256(HELLO)
@@ -39,8 +35,8 @@ export default function HashStory({ planetId, moon, onBack, onComplete }: Lesson
 
       const st = {
         text: HELLO, hash: helloHash, // part 1
-        a: LINE, b: LINE, ha: lineHash, hb: lineHash, changed: false, // part 2
-        line: LINE, hl: lineHash, caught: false, // part 3 (the trusted fingerprint is lineHash)
+        a: LINE, b: LINE, ha: lineHash, hb: lineHash, // part 2
+        line: LINE, hl: lineHash, // part 3 (the trusted fingerprint is lineHash)
         level: 2, tries: 0, gh: helloHash, found: false, // part 4
       }
 
@@ -136,7 +132,6 @@ export default function HashStory({ planetId, moon, onBack, onComplete }: Lesson
         // like the prototype: 20 -> 21, otherwise swap the last letter
         inp.value = v.includes('20') ? v.replace('20', '21') : v.slice(0, -1) + (v.slice(-1) === 'x' ? 'y' : 'x')
         setAB('b', inp.value)
-        if (!st.changed) { st.changed = true; algoSay('Just one character changed. Look how many bars turned gold!') }
       }
 
       // Part 3: Bob edits a ledger line; its fingerprint no longer matches the saved one
@@ -148,7 +143,6 @@ export default function HashStory({ planetId, moon, onBack, onComplete }: Lesson
         const ok = h === lineHash
         const r = $('h2r'); r.className = 'fb ' + (ok ? 'ok' : 'bad')
         r.textContent = ok ? '✓ Match: the line is just as it was written.' : '✗ Mismatch: someone changed this line!'
-        if (!ok && !st.caught) { st.caught = true; algoSay('Caught! Bob changed the line, and the fingerprint gives him away.') }
         if (active === 2) draw()
       }
       $<HTMLInputElement>('h2in').oninput = (e) => setLine((e.target as HTMLInputElement).value)
@@ -173,17 +167,12 @@ export default function HashStory({ planetId, moon, onBack, onComplete }: Lesson
         if (active === 3) draw()
         return st.found
       }
-      const onFound = () => algoSay([
-        'Easy one! Now try 00. It takes about 16 times more guessing.',
-        'Found it! Try 000 next. Each extra zero means about 16 times more guesses.',
-        "Phew! Lots of guessing to find, but one hash to check. Remember that, it comes back with proof of work.",
-      ][st.level - 1])
-      $('h3one').onclick = async () => { guessRun++; if (await guessOnce()) onFound() }
+      $('h3one').onclick = async () => { guessRun++; await guessOnce() }
       $('h3auto').onclick = async () => {
         const run = ++guessRun
         while (alive && run === guessRun) {
           for (let i = 0; i < st.level * st.level; i++) {
-            if (await guessOnce()) { guessRun++; onFound(); return }
+            if (await guessOnce()) { guessRun++; return }
             if (run !== guessRun) return
           }
           await sleep(16)
@@ -221,7 +210,7 @@ export default function HashStory({ planetId, moon, onBack, onComplete }: Lesson
         </div>
       </header>
       <main className="cmain" ref={mainRef} />
-      <AlgoChat planetId={planetId} moonId={moon.id} reaction={reaction} />
+      <AlgoChat planetId={planetId} moonId={moon.id} />
     </div>
   )
 }

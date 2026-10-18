@@ -4,32 +4,28 @@
  * Built like SignaturesStory: the story scrolls on the left, the fingerprint scene from storyKit sits on the right
  * (covered by the chain or the mining race when a part needs them), with Back/Next. All the text lives here.
  */
-import { useEffect, useRef, useState } from 'react'
-import AlgoChat, { type Reaction } from '../AlgoChat'
+import { useEffect, useRef } from 'react'
+import AlgoChat from '../AlgoChat'
 import type { LessonProps } from '../StoryLayout'
-import { MINERS, ZERO, bstr, chainHTML, esc, hashHTML, makeChain, makeHashScene, makeQuiz, navHTML, raceHTML, raceMiners, sha256, sleep, storyParts, valid, type RaceResult } from './storyKit'
+import { MINERS, ZERO, bstr, chainHTML, esc, hashHTML, makeChain, makeHashScene, navHTML, quiz, raceHTML, raceMiners, sha256, sleep, storyParts, valid, type RaceResult } from './storyKit'
 import '../story.css'
 
 const TX = 'Alice pays Bob 20\nBob pays Charlie 5\nCharlie pays Alice 8'
 
 export default function ProofOfWorkStory({ planetId, moon, onBack, onComplete }: LessonProps) {
   const mainRef = useRef<HTMLElement>(null)
-  const [reaction, setReaction] = useState<Reaction>({ text: "Remember the nonce from last moon? Now we'll put it to work! Scroll down, and ask me anything on the way.", key: 0 })
 
-  // Keep the latest callbacks without re-running the setup
-  const say = useRef((text: string) => setReaction({ text, key: Date.now() }))
+  // Keep the latest onComplete without re-running the setup
   const complete = useRef(onComplete)
   useEffect(() => { complete.current = onComplete })
 
   useEffect(() => {
     const main = mainRef.current
     if (!main) return
-    const algoSay = (t: string) => say.current(t)
     let alive = true
     let parts: ReturnType<typeof storyParts> | undefined
 
     const $ = <T extends HTMLElement = HTMLElement>(id: string) => main.querySelector(`#${id}`) as T
-    const quiz = makeQuiz(algoSay)
 
     async function setup(main: HTMLElement) {
       // The puzzle's answer (for part 2) and a starting chain of three mined blocks (for part 3)
@@ -119,12 +115,10 @@ export default function ProofOfWorkStory({ planetId, moon, onBack, onComplete }:
         if (h.startsWith('00')) st.found = n; else st.nonce++
         showMine()
       }
-      const onSolved = () => algoSay(`Nonce ${st.found} works! That's proof you did the work. Now see how quickly anyone can check it.`)
       $('p0next').onclick = async () => {
         mineRun++
         if (st.found !== null) return
         await step()
-        if (st.found !== null) onSolved()
       }
       $('p0auto').onclick = async () => {
         if (st.found !== null) return
@@ -132,7 +126,6 @@ export default function ProofOfWorkStory({ planetId, moon, onBack, onComplete }:
         while (alive && run === mineRun && st.found === null) {
           await step(); await step(); await sleep(16)
         }
-        if (st.found !== null && run === mineRun) onSolved()
       }
       $('p0reset').onclick = () => {
         mineRun++
@@ -145,7 +138,6 @@ export default function ProofOfWorkStory({ planetId, moon, onBack, onComplete }:
         if (st.checked) return
         st.checked = true
         $('p1h').hidden = false; $('p1r').hidden = false
-        algoSay(`One hash to check, ${solve + 1} to find. That's the magic of proof of work!`)
         if (active === 1) draw()
       }
 
@@ -169,13 +161,11 @@ export default function ProofOfWorkStory({ planetId, moon, onBack, onComplete }:
         return true
       }
       const p2msg = (cls: string, text: string) => { const r = $('p2r'); r.hidden = false; r.className = 'fb ' + cls; r.textContent = text }
-      let broke = false
       $<HTMLInputElement>('p2in').oninput = async (e) => {
         if (st.mining >= 0) return
         st.chain[0].data = (e.target as HTMLInputElement).value
         if (!(await recompute())) return
         showChain()
-        if (!broke && !valid(st.chain[0])) { broke = true; algoSay('Uh-oh, the whole chain broke! Try re-mining the blocks.') }
       }
       main.querySelectorAll<HTMLButtonElement>('[data-m]').forEach((btn) => (btn.onclick = async () => {
         if (st.mining >= 0) return
@@ -196,7 +186,7 @@ export default function ProofOfWorkStory({ planetId, moon, onBack, onComplete }:
         if (!alive) return
         showChain()
         const next = st.chain.findIndex((x) => !valid(x))
-        if (next < 0) { p2msg('ok', `Block ${i + 1} re-mined with nonce ${b.nonce}. The whole chain is valid again!`); algoSay('All valid again. Imagine doing that for thousands of blocks!') }
+        if (next < 0) p2msg('ok', `Block ${i + 1} re-mined with nonce ${b.nonce}. The whole chain is valid again!`)
         else p2msg('', `Block ${i + 1} re-mined with nonce ${b.nonce}. Now block ${next + 1} is broken instead.`)
       }))
       $('p2reset').onclick = async () => {
@@ -214,7 +204,6 @@ export default function ProofOfWorkStory({ planetId, moon, onBack, onComplete }:
         const btn = $<HTMLButtonElement>('p3go')
         btn.disabled = true; $('p3r').hidden = true
         st.tries = null; st.win = null
-        algoSay("They're off! Every guess is a lottery ticket.")
         const win = await raceMiners(MINERS, 3, () => alive, (tries) => { st.tries = tries; if (active === 3) draw() })
         if (!win) return
         st.win = win; st.tries = win.tries
@@ -222,7 +211,6 @@ export default function ProofOfWorkStory({ planetId, moon, onBack, onComplete }:
         const r = $('p3r'); r.hidden = false; r.className = 'fb ok'
         r.textContent = `${w.n} miner wins after ${win.tries[win.winner].toLocaleString()} guesses and earns 10 new coins!`
         btn.disabled = false; btn.textContent = 'Race again'
-        algoSay(win.winner === 2 ? 'Gold had the fastest computer, and won this time. Race again: luck matters too!' : `${w.n} won without the fastest computer. Luck matters!`)
         if (active === 3) draw()
       }
 
@@ -249,7 +237,7 @@ export default function ProofOfWorkStory({ planetId, moon, onBack, onComplete }:
         </div>
       </header>
       <main className="cmain" ref={mainRef} />
-      <AlgoChat planetId={planetId} moonId={moon.id} reaction={reaction} />
+      <AlgoChat planetId={planetId} moonId={moon.id} />
     </div>
   )
 }
