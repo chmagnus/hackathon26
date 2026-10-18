@@ -24,6 +24,26 @@ class StartupTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_cloudflare_entry_loads_the_api(self):
+        # Cloudflare loads the files in backend/src as top-level modules, with src/worker.py as the entry
+        code = (
+            "import sys, types\n"
+            "workers = types.ModuleType('workers')\n"
+            "workers.asgi = types.SimpleNamespace(entrypoint=lambda app: app)\n"
+            "sys.modules['workers'] = workers\n"
+            "import worker\n"
+            "assert worker.Default.title == 'Nova API'\n"
+            "assert '/api/systems/{system_id}/verify' in worker.Default.openapi()['paths']\n"
+        )
+        env = os.environ.copy()
+        env.pop("PYTHONPATH", None)
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            cwd=Path(__file__).resolve().parents[1] / "src", env=env,
+            capture_output=True, text=True, timeout=30,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_tutor_prompt_uses_content_models(self):
         request = TutorRequest(
             system="blockchain", moon_id="hashing",
