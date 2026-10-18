@@ -174,6 +174,8 @@ export function MoonsScreen({ planet = MOCK_PLANET, progress: initialProgress = 
           <ChapterPanel
             orbit={focusedOrbit}
             completed={progress.completed}
+            edited={Object.keys(edits)}
+            broken={[...brokenIds]}
             onSelectMoon={selectMoon}
             onClose={close}
             expandingId={concept.expandingId}

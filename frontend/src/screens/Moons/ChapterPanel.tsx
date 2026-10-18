@@ -15,6 +15,9 @@ export interface ChapterPanelProps {
   orbit: Orbit
   /** ids of concepts the user has finished */
   completed: string[]
+  /** ids of concepts whose text the learner rewrote, and of those that no longer match the hash chain */
+  edited?: string[]
+  broken?: string[]
   /** `rect`: where the clicked card is on screen, for the card-expands transition */
   onSelectMoon: (moonId: string, rect: DOMRect) => void
   onClose: () => void
@@ -28,7 +31,7 @@ export interface ChapterPanelProps {
   busy?: boolean
 }
 
-export function ChapterPanel({ orbit, completed, onSelectMoon, onClose, expandingId = null, away = false, glowId = null, busy = false }: ChapterPanelProps) {
+export function ChapterPanel({ orbit, completed, edited = [], broken = [], onSelectMoon, onClose, expandingId = null, away = false, glowId = null, busy = false }: ChapterPanelProps) {
   const moons = [...orbit.moons].sort((a, b) => a.order - b.order)
   const done = new Set(completed)
 
@@ -64,7 +67,10 @@ export function ChapterPanel({ orbit, completed, onSelectMoon, onClose, expandin
               >
                 <span className="flex items-center justify-between gap-2">
                   <b className="text-[15px]">{moon.order}. {moon.title}</b>
-                  {done.has(moon.id) && <span className="font-mono text-[11px] uppercase tracking-widest text-mint">✓ done</span>}
+                  <span className="flex shrink-0 gap-2 font-mono text-[11px] uppercase tracking-widest">
+                    {edited.includes(moon.id) ? <span className="text-gold">✎ edited</span> : broken.includes(moon.id) && <span className="text-coral">✗ broken</span>}
+                    {done.has(moon.id) && <span className="text-mint">✓ done</span>}
+                  </span>
                 </span>
                 <span className="mt-0.5 block text-sm text-[#cdd5ea]">{moon.summary}</span>
               </button>
