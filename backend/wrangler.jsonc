@@ -1,0 +1,24 @@
+// Cloudflare Workers: the FastAPI backend runs as a Python Worker for /api/*, and the built frontend
+// (frontend/dist) is served from the same domain as static assets. Deploy from backend/ with
+//   uvx --from workers-py pywrangler deploy
+// The Workers AI credentials are secrets: npx wrangler secret put CF_ACCOUNT_ID (then CF_API_TOKEN).
+{
+  "name": "nova",
+  "main": "src/worker.py",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["python_workers"],
+  "assets": {
+    "directory": "../frontend/dist",
+    "binding": "ASSETS",
+    // unknown paths get index.html, so the single-page app handles them
+    "not_found_handling": "single-page-application",
+    // only API requests run the Worker; everything else is served straight from the assets
+    "run_worker_first": ["/api/*"]
+  },
+  "vars": {
+    "AI_PROVIDERS": "workers_ai",
+    "WORKERS_AI_MODEL": "@cf/meta/llama-3.1-8b-instruct",
+    "TUTOR_DAILY_CAP": "500"
+  },
+  "observability": { "enabled": true }
+}

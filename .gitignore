@@ -18,6 +18,9 @@ __pycache__/
 
 # Cloudflare
 .wrangler/
+backend/python_modules/
+backend/.venv-workers/
+backend/pylock.toml
 
 # OS and editors
 .DS_Store

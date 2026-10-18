@@ -132,14 +132,32 @@ answering, it sends a canned offline reply (`mock`).
 | `TUTOR_DAILY_CAP` | Questions per day before the tutor replies with a limit message (default 500, counted per instance on Cloudflare) |
 
 Locally, copy `backend/.env.example` to `backend/.env` and fill it in. On
-Cloudflare Workers, set `AI_PROVIDERS=workers_ai`, `CF_ACCOUNT_ID` and
-`WORKERS_AI_MODEL` as variables and the token as a secret
-(`npx wrangler secret put CF_API_TOKEN`); `src/settings.py` reads both.
+Cloudflare, `backend/wrangler.jsonc` sets the variables, and the two Workers AI
+credentials are secrets (see below); `src/settings.py` reads both.
 
-The frontend calls `/api/...` on its own origin, so serve the site and the API
-from the same domain, or route `/api/*` to the API Worker. While developing
-without the backend, the chat answers with a fake Algo; a deployed build shows
-an error message instead.
+While developing without the backend, the chat answers with a fake Algo; a
+deployed build shows an error message instead.
+
+## Deploy to Cloudflare
+
+One Worker serves everything (`backend/wrangler.jsonc`): the FastAPI backend
+runs as a Python Worker for `/api/*`, and `frontend/dist` is served as static
+assets on the same domain. You need a Cloudflare account, Node and
+[uv](https://docs.astral.sh/uv/).
+
+1. Log in: `npx wrangler login`
+2. Build the site: `cd frontend && npm ci && npm run build`
+3. Deploy, from `backend/`: `uvx --from workers-py pywrangler deploy`. It
+   prints the site's address, `https://nova.<your-subdomain>.workers.dev`.
+4. Give the tutor its Workers AI credentials. In the Cloudflare dashboard, open
+   **Workers AI** > **Use REST API**, create a Workers AI API token, and copy it
+   and the Account ID. Then, from `backend/`, run
+   `npx wrangler secret put CF_ACCOUNT_ID` and
+   `npx wrangler secret put CF_API_TOKEN`. Until then, Algo gives offline replies.
+
+To redeploy, repeat steps 2 and 3. `npx wrangler tail`, run from `backend/`,
+streams the live logs. Use `uvx` as above rather than `uv run`, which would
+also change `backend/.venv`, your local development environment.
 
 
 ## Credits

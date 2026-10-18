@@ -14,12 +14,7 @@ logger = logging.getLogger("nova")
 
 app = FastAPI(title="Nova API")
 app.include_router(systems_router)
-
-try:
-    from workers import asgi  # only available on Cloudflare
-    Default = asgi.entrypoint(app)
-except ImportError:
-    pass
+# On Cloudflare, src/worker.py serves this app (see wrangler.jsonc).
 
 
 class ApiError(Exception):
