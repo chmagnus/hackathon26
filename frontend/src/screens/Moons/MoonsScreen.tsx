@@ -17,6 +17,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { InUniverse } from '../../galaxy/tunnel'
 import { useView } from '../../galaxy/view'
+import { playMoonClick } from '../../shared/sounds'
 import { ChapterPanel } from './ChapterPanel'
 import { chapterState, type ChapterProgress } from './chapters'
 import { ConceptLayer } from './ConceptLayer'
@@ -75,7 +76,11 @@ export function MoonsScreen({ planet = MOCK_PLANET, progress: initialProgress = 
       showToast(`Finish chapter ${next} first to unlock this one`)
       return
     }
-    if (chapter !== orbitNumber) setChapter(orbitNumber)
+    // whoosh only when the camera actually starts flying to a new moon
+    if (chapter !== orbitNumber) {
+      playMoonClick()
+      setChapter(orbitNumber)
+    }
   }
 
   // tell the parent once the camera has arrived at a chapter (latest callback, without re-subscribing)

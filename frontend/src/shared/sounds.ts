@@ -4,6 +4,7 @@
 //   algo-click.mp3    - clicking Algo
 //   algo.mp3          - Algo's voice while the AI is responding (loops)
 //   travel.mp3        - moving between planets
+//   moon-whoosh.mp3   - clicking a chapter moon
 //
 // Usage:
 //   import { playPlanetClick, playAlgoClick, playTravel } from '../../shared/sounds'
@@ -14,6 +15,7 @@ const files = {
   algoClick: '/sounds/algo-click.mp3',
   algo: '/sounds/algo.m4a',
   travel: '/sounds/travel.mp3',
+  moon: '/sounds/moon-whoosh.mp3',
 }
  
 // Volume for each sound, from 0 (silent) to 1 (full). Adjust to taste.
@@ -22,6 +24,7 @@ const volumes = {
   algoClick: 0.6,
   algo: 0.6,
   travel: 0.5,
+  moon: 0.5,
 }
  
 type SoundName = keyof typeof files
@@ -52,6 +55,7 @@ function play(name: SoundName) {
 export const playPlanetClick = () => play('planet')
 export const playAlgoClick = () => play('algoClick')
 export const playTravel = () => play('travel')
+export const playMoonClick = () => play('moon')
  
 // Algo's voice: loops while the AI is responding, stops when it's done.
 let voice: HTMLAudioElement | null = null
