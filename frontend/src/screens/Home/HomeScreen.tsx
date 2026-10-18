@@ -98,7 +98,8 @@ export function HomeScreen(props: HomeScreenProps) {
   return (
     // overlay on top of the Universe canvas: lets the pointer through, except on its own panels and buttons.
     // Fades out as the camera closes in on a planet (the Moon overlay shows there instead).
-    <div className={`pointer-events-none absolute inset-0 overflow-hidden font-body text-ink transition-[opacity,visibility] duration-300 ${zoomStarted ? 'invisible opacity-0' : ''}`}>
+    // While faded, its panels and buttons can't be clicked either (overrides their pointer-events-auto).
+    <div className={`pointer-events-none absolute inset-0 overflow-hidden font-body text-ink transition-[opacity,visibility] duration-300 ${zoomStarted ? 'invisible opacity-0 *:pointer-events-none!' : ''}`}>
       <InUniverse>
         <HomeScene completedMoons={completedMoons} captured={captured} justCaptured={justCaptured} labelsHidden={labelsHidden} onPlanetClick={selectPlanet} labelRoot={universeLabelRoot} />
       </InUniverse>
