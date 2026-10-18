@@ -9,6 +9,8 @@
  *  - onSelectPlanet(id): called once the camera has arrived at the clicked planet (the Moon overlay shows from there).
  *    Only live planets fly in; "coming soon" ones just show a toast.
  *  - onResetProgress(): clears the saved progress. When given, the name card shows "Reset" (with a confirmation).
+ *  - onDemoComplete(id): finishes every moon of a planet and captures it. When given, the Demo panel can show
+ *    (in dev, with ?demo in the URL, or after Shift+D).
  * If those props aren't passed, the screen runs on its own with demo progress so it can be built and tested alone.
  *
  * The 3D scene is drawn in the shared Universe canvas (src/galaxy), which must be mounted alongside this screen;
@@ -21,6 +23,7 @@ import { useView } from '../../galaxy/view'
 import { HomeScene } from './HomeScene'
 import { HOME_PLANETS, type PlanetId } from './planets'
 import { ResetProgressDialog } from './ResetProgressDialog'
+import { DemoPanel } from './DemoPanel'
 import { playPlanetClick } from '../../shared/sounds'
 
 export interface HomeScreenProps {
@@ -30,6 +33,7 @@ export interface HomeScreenProps {
   justCaptured?: PlanetId | null
   onSelectPlanet?: (id: PlanetId) => void
   onResetProgress?: () => void
+  onDemoComplete?: (id: PlanetId) => void
 }
 
 const NAME_KEY = 'nova-name'
@@ -156,6 +160,17 @@ export function HomeScreen(props: HomeScreenProps) {
         >
           DEV: {demoCaptured.includes('blockchain') ? 'reset orbit' : 'finish Blockchain'}
         </button>
+      )}
+
+      {/* demo panel (bottom-left): capture planets without doing every lesson */}
+      {props.onDemoComplete && (
+        <DemoPanel
+          planets={planets.filter((p) => p.live)}
+          captured={captured}
+          hidden={labelsHidden}
+          onComplete={props.onDemoComplete}
+          onReset={props.onResetProgress}
+        />
       )}
 
       {toast && (
