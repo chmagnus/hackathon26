@@ -159,7 +159,7 @@ export function HomeScreen(props: HomeScreenProps) {
       {editingName && (
         <div className="pointer-events-auto absolute inset-0 z-20 grid place-items-center bg-void/60 p-6">
           <form onSubmit={saveName} className="flex w-full max-w-[440px] flex-col gap-3.5 rounded-3xl border border-white/15 bg-glass p-7 backdrop-blur-lg">
-            <span className="font-mono text-[11.5px] uppercase tracking-[.16em] text-mint">GUTS 2027 · Learn algorithms in 3D</span>
+            <span className="font-mono text-[11.5px] uppercase tracking-[.16em] text-mint">GUTS 2026 · Learn algorithms in 3D</span>
             <h1 className="font-display text-4xl font-extrabold leading-none tracking-wider">Nova</h1>
             <p className="text-[#cdd5ea]">Every algorithm is a planet. Every idea is a moon. Finish all of a planet's moons and it joins your orbit.</p>
             <label htmlFor="home-name" className="font-mono text-[11px] uppercase tracking-widest text-muted">What should we call you?</label>
