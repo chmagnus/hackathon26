@@ -49,10 +49,20 @@ it into the existing Pydantic models. There is no database, content loader, API
 schema change, or new dependency in this content update. Restart FastAPI after
 editing content unless using reload mode.
 
-All planets keep `chain: false`: hash verification and mining widgets are separate
-features. Lessons teach those concepts without claiming this release implements
-an on-server blockchain. Widget fields remain null because reading and checkpoints
-are usable without an unfinished widget.
+Blockchain has `chain: true`: its lessons form a real SHA-256 hash chain, built in
+`src/chain.py`. The star introduction is the genesis record (`star.hash`), and each
+moon's `hash` covers its `prev_hash` plus its canonical title and body, in orbit
+and moon order. Other planets keep `chain: false` and null hashes. The hashing rules
+and test vectors for a matching frontend implementation are in
+`shared/hash_vectors.json`.
+
+`POST /api/systems/{id}/verify` takes `{"edits": {"moon-id": "new body"}}` and
+returns every moon's recomputed `hash`, whether it still matches its record
+(`valid`), and `first_broken`. An edit breaks that moon and every later one;
+whitespace-only changes do not. Nothing is saved. Errors: `system_not_found` and
+`moon_not_found` (404), `chain_disabled` (409) for planets without a chain.
+`nonces` is accepted but reserved for the mining step. Widget fields remain null
+because reading and checkpoints are usable without an unfinished widget.
 
 The frontend now fetches the planet list and full planet responses through the
 Vite `/api` proxy to port 8000, passing real content and progress to `MoonsScreen`.

@@ -6,7 +6,7 @@ contains the planet introduction. Coordinate field changes with the frontend.
 """
 
 from pydantic import BaseModel, Field, model_validator
-from typing import Literal
+from typing import Annotated, Literal
 
 
 
@@ -86,6 +86,32 @@ class SystemSummary(BaseModel):
     title: str = Field(min_length=1)
     colour: str = Field(pattern=r"^#[0-9a-fA-F]{6}$")
     moon_count: int = Field(ge=0)
+
+
+class VerifyRequest(BaseModel):
+    """Proposed lesson edits to check against a planet's hash chain; nothing is saved."""
+
+    edits: dict[str, Annotated[str, Field(max_length=20_000)]] = Field(
+        default_factory=dict, max_length=64,
+        description="Moon ID mapped to a replacement lesson body.",
+    )
+    nonces: dict[str, Annotated[int, Field(ge=0)]] = Field(
+        default_factory=dict, max_length=64,
+        description="Reserved for the mining step; not yet part of the hash.",
+    )
+
+
+class MoonStatus(BaseModel):
+    id: str
+    hash: str
+    valid: bool
+
+
+class VerifyResult(BaseModel):
+    """Recomputed hashes in chain order; first_broken is the first moon that no longer matches."""
+
+    first_broken: str | None
+    moons: list[MoonStatus]
 
 
 class ChatMessage(BaseModel):

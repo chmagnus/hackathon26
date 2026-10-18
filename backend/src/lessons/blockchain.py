@@ -195,4 +195,5 @@ BLOCKCHAIN = planet(
                 "Validators use committed stake under protocol rules", ["How are fork choice and finality different?", "Which problems do hashes alone leave unsolved?"]),
         ]),
     ],
+    chain=True,
 )

@@ -55,6 +55,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/systems/{system_id}/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check lesson edits against a planet's hash chain */
+        post: operations["verify_system_api_systems__system_id__verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -170,6 +187,15 @@ export interface components {
              */
             nonce: number;
         };
+        /** MoonStatus */
+        MoonStatus: {
+            /** Id */
+            id: string;
+            /** Hash */
+            hash: string;
+            /** Valid */
+            valid: boolean;
+        };
         /** Orbit */
         Orbit: {
             /** Number */
@@ -254,6 +280,36 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /**
+         * VerifyRequest
+         * @description Proposed lesson edits to check against a planet's hash chain; nothing is saved.
+         */
+        VerifyRequest: {
+            /**
+             * Edits
+             * @description Moon ID mapped to a replacement lesson body.
+             */
+            edits?: {
+                [key: string]: string;
+            };
+            /**
+             * Nonces
+             * @description Reserved for the mining step; not yet part of the hash.
+             */
+            nonces?: {
+                [key: string]: number;
+            };
+        };
+        /**
+         * VerifyResult
+         * @description Recomputed hashes in chain order; first_broken is the first moon that no longer matches.
+         */
+        VerifyResult: {
+            /** First Broken */
+            first_broken: string | null;
+            /** Moons */
+            moons: components["schemas"]["MoonStatus"][];
         };
         /** WidgetEvent */
         WidgetEvent: {
@@ -356,6 +412,55 @@ export interface operations {
             };
             /** @description Planet or moon not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    verify_system_api_systems__system_id__verify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                system_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerifyResult"];
+                };
+            };
+            /** @description Planet or moon not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Planet has no hash chain */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
