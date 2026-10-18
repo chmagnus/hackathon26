@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { fetchCurriculum } from './api/content'
 import { Universe } from './galaxy/Universe'
 import { useView } from './galaxy/view'
@@ -27,6 +27,8 @@ function useCurriculum(): Planet[] {
   return planets
 }
 
+const moonsOf = (planet: Planet) => planet.orbits.flatMap((orbit) => orbit.moons)
+
 // One shared 3D Universe with each screen's 2D overlay on top. Which planet/chapter the camera is on lives in
 // src/galaxy/view.ts (maps to routes later: '/', '/:planetId', '/:planetId/:moonId').
 // The Concept page opens from the Moon screen's chapter panel, which also runs the transition in and out of it.
@@ -37,11 +39,12 @@ export default function App() {
   const [shownId, setShownId] = useState<string>('blockchain')
   if (view.mode === 'planet' && view.id !== shownId) setShownId(view.id)
   const planet = planets.find((p) => p.id === shownId) ?? planets[0]
+  const moonCounts = useMemo(() => Object.fromEntries(planets.map((p) => [p.id, moonsOf(p).length])), [planets])
 
   return (
     <div className="relative h-full overflow-hidden">
       <Universe />
-      <HomeScreen />
+      <HomeScreen moonCounts={moonCounts} />
       <MoonsScreen
         key={planet.id}
         planet={planet}
